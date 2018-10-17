@@ -1,5 +1,8 @@
-if (typeof require !== 'undefined') require('isomorphic-fetch');
-const magic = require('magic-promises');
+import magic from './node_modules/magic-promises/magic.js';
+
+if (typeof require !== 'undefined') {
+  require('isomorphic-fetch');
+}
 
 // To avoid making parallel requests to the same url if one is ongoing
 const ongoing = new Map();
@@ -17,7 +20,6 @@ const fch = (url, options = {}) => {
   options = {
     method: 'get',
     headers: {},
-    credentials: 'include',
     ...(typeof options === 'object' ? options : {})
   };
 

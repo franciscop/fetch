@@ -5,7 +5,7 @@
   "main": "fetch.js",
   "scripts": {
     "start": "npm run watch # Start ~= Start dev",
-    "build": "rollup fetch.js --name fetch --output.format umd | uglifyjs -o fetch.min.js",
+    "build": "rollup fetch.js --name fch --output.format umd | uglifyjs -o fetch.min.js",
     "test": "npm run build && jest --coverage --detectOpenHandles",
     "watch": "nodemon --exec \"npm run build && npm test && npm run gzip\" --watch src --watch test --watch webpack.config.js --watch package.json",
     "gzip": "gzip -c fetch.min.js | wc -c && echo 'bytes' # Only for Unix"
@@ -15,7 +15,7 @@
   "license": "MIT",
   "dependencies": {
     "isomorphic-fetch": "^2.2.1",
-    "magic-promises": "^1.2.2"
+    "magic-promises": "^1.2.3"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",

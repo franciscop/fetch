@@ -1,11 +1,11 @@
 # Fetch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/store.min.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.min.js)
 
-`fetch()` greatly improved in 600 bytes:
+`fetch()` greatly improved:
 
 ```js
 import { get } from 'fch';
 // Example; { "name": "Francisco" }
-const url = 'https//api.jsonbin.io/b/5bc69ae7716f9364f8c58651';
+const url = 'https://api.jsonbin.io/b/5bc69ae7716f9364f8c58651';
 
 (async () => {
   // Using magic-promises interface
@@ -22,11 +22,10 @@ const url = 'https//api.jsonbin.io/b/5bc69ae7716f9364f8c58651';
 
 ## Better `fetch()`
 
-- Parallel `GET` requests to the same url are not triggered multiple times.
+- Isomorphic fetch() so it works the same in the server as the browser.
 - Automatic `JSON.stringify()` and `Content-Type: 'application/json'` for plain objects.
 - Await/Async Promise interface works as you know and love.
 - Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance. Can be caught as normal with `.catch()` or `try {} catch (error) {}`.
-- `{ credentials: include }` by default for automatic cookies.
 - Advanced [magic-promises interface](https://github.com/franciscop/magic-promises) so you can concatenate operations easily.
 - Import with the shorthand for tighter syntax. `import { get, post } from 'fch';`.
 
