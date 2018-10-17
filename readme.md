@@ -1,4 +1,4 @@
-# Fetch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/store.min.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.min.js)
+# Fetch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/fetch.min.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.min.js)
 
 `fetch()` greatly improved:
 

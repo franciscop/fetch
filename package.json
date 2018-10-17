@@ -13,6 +13,13 @@
   "keywords": [],
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/franciscop/fetch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/franciscop/fetch/issues"
+  },
   "dependencies": {
     "isomorphic-fetch": "^2.2.1",
     "magic-promises": "^1.2.3"
