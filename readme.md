@@ -41,8 +41,11 @@ npm install fch
 Import it to be able to use it in your code:
 
 ```js
-const cmd = require('fch');  // Old school
-import cmd from 'fch';       // New wave
+const fch = require('fch');  // Old school
+import fch from 'fch';       // New wave
+
+const { get, post } = require('fch');  // Old school
+import { get, post } from 'fch';       // New wave
 ```
 
 
