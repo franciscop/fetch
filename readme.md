@@ -35,14 +35,14 @@ const url = 'https://api.jsonbin.io/b/5bc69ae7716f9364f8c58651';
 Install it in your project:
 
 ```
-npm install atocha
+npm install fetch
 ```
 
 Import it to be able to use it in your code:
 
 ```js
-const cmd = require('atocha');  // Old school
-import cmd from 'atocha';       // New wave
+const cmd = require('fetch');  // Old school
+import cmd from 'fetch';       // New wave
 ```
 
 
