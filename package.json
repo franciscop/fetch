@@ -1,6 +1,6 @@
 {
   "name": "fch",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Fetch interface with get queue, credentials, reject on http error and better promises",
   "main": "fetch.js",
   "scripts": {
