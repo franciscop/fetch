@@ -1,4 +1,4 @@
-require('isomorphic-fetch');
+if (typeof require !== 'undefined') require('isomorphic-fetch');
 const magic = require('magic-promises');
 
 // To avoid making parallel requests to the same url if one is ongoing
