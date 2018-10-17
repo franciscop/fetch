@@ -38,14 +38,20 @@ Install it in your project:
 npm install fch
 ```
 
-Import it to be able to use it in your code:
+Then import it to be able to use it in your code:
 
 ```js
-const fch = require('fch');  // Old school
-import fch from 'fch';       // New wave
+const { get, post, ... } = require('fch');  // Old school
+import { get, post, ... } from 'fch';       // New wave
+```
 
-const { get, post } = require('fch');  // Old school
-import { get, post } from 'fch';       // New wave
+Alternatively, include it straight from the CDN for front-end:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/fch"></script>
+<script>
+  const { get, post, ... } = fch;
+</script>
 ```
 
 
