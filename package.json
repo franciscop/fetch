@@ -2,7 +2,7 @@
   "name": "fch",
   "version": "0.3.1",
   "description": "Fetch interface with get queue, credentials, reject on http error and better promises",
-  "main": "fetch.js",
+  "main": "fetch.min.js",
   "scripts": {
     "start": "npm run watch # Start ~= Start dev",
     "build": "rollup fetch.js --name fch --output.format umd | uglifyjs -o fetch.min.js",
