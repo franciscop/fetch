@@ -70,6 +70,7 @@ const fch = (url, options = {}) => {
   return ongoing.get(url);
 };
 
+fch.head = (url, options = {}) => fch(url, { ...options, method: 'head' });
 fch.get = (url, options = {}) => fch(url, { ...options, method: 'get' });
 fch.post = (url, options = {}) => fch(url, { ...options, method: 'post' });
 fch.patch = (url, options = {}) => fch(url, { ...options, method: 'patch' });

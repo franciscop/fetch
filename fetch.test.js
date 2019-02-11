@@ -1,4 +1,4 @@
-import fch from './fetch.min';
+import fch, { get } from './fetch.min';
 global.fetch = require('jest-fetch-mock');
 
 describe('fetch()', () => {
@@ -31,6 +31,12 @@ describe('fetch()', () => {
     fetch.once('put');
     expect(await fch.put('/').text()).toBe('put');
     expect(fetch.mock.calls[0][1].method).toEqual('put');
+  });
+
+  it('can use the `fetch.head()` shorthand', async () => {
+    fetch.once('head');
+    expect(await fch.head('/').text()).toBe('head');
+    expect(fetch.mock.calls[0][1].method).toEqual('head');
   });
 
   it('can use the `fetch.post()` shorthand', async () => {
