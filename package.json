@@ -22,14 +22,15 @@
   },
   "dependencies": {
     "isomorphic-fetch": "^2.2.1",
-    "magic-promises": "^1.2.3"
+    "swear": "^1.0.0"
   },
   "devDependencies": {
     "babel-core": "^6.26.0",
     "babel-jest": "^21.2.0",
-    "babel-preset-env": "^1.6.1",
+    "babel-preset-env": "^1.7.0",
     "jest": "^23.5.0",
     "jest-fetch-mock": "^1.6.6",
+    "rollup": "^1.1.2",
     "uglify-es": "^3.3.9"
   }
 }

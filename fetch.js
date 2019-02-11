@@ -1,4 +1,4 @@
-import magic from './node_modules/magic-promises/magic.js';
+import swear from './node_modules/swear/swear.js';
 
 if (typeof require !== 'undefined') {
   require('isomorphic-fetch');
@@ -43,7 +43,7 @@ const fch = (url, options = {}) => {
     headers['content-type'] = 'application/json; charset=utf-8';
   }
 
-  ongoing.set(url, magic(fetch(url, { ...options, headers }).then(res => {
+  ongoing.set(url, swear(fetch(url, { ...options, headers }).then(res => {
     // No longer ongoing at this point
     ongoing.delete(url);
 

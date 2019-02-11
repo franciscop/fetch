@@ -3,18 +3,19 @@
 `fetch()` greatly improved:
 
 ```js
-import { get } from 'fch';
-// Example; { "name": "Francisco" }
+import fch from 'fch';
+
+// Example data: { "name": "Francisco" }
 const url = 'https://api.jsonbin.io/b/5bc69ae7716f9364f8c58651';
 
 (async () => {
-  // Using magic-promises interface
-  const name = await get(url).json().name;
+  // Using the Swear interface
+  const name = await fch(url).json().name;
   console.log(name);  // "Francisco"
 
   // Using plain-old promises
-  const data = await get(url).then(res => res.json());
-  console.log(data);  // { name: "Francisco" }
+  const data = await fch(url).then(res => res.json());
+  console.log(data.name);  // "Francisco"
 })();
 ```
 
@@ -26,7 +27,7 @@ const url = 'https://api.jsonbin.io/b/5bc69ae7716f9364f8c58651';
 - Automatic `JSON.stringify()` and `Content-Type: 'application/json'` for plain objects.
 - Await/Async Promise interface works as you know and love.
 - Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance. Can be caught as normal with `.catch()` or `try {} catch (error) {}`.
-- Advanced [magic-promises interface](https://github.com/franciscop/magic-promises) so you can concatenate operations easily.
+- Advanced [promises interface](https://github.com/franciscop/swear) so you can concatenate operations easily.
 - Import with the shorthand for tighter syntax. `import { get, post } from 'fch';`.
 
 
