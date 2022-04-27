@@ -1,26 +1,31 @@
-# Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/fetch.min.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.min.js)
+# Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/fetch.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.js)
 
-A tiny library to make API calls a breeze. It's similar to Axios, and works in Node.js (18+) and the browser:
+A library to make API calls easier. Similar to Axios, but tiny size and simpler API:
 
 ```js
 import api from "fch";
 
 api.baseUrl = "https://pokeapi.co/";
 
-const mew = await api.get("/pokemon/150");
+const mew = await api("/pokemon/150");
 console.log(mew);
 ```
 
 `fch` is a better `fetch()`:
 
+- Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for plain objects.
+- Automatically parse server response as json if it includes the headers, or text otherwise.
 - Isomorphic fetch(); it works the same way in the browser and server.
-- Automatic `JSON.stringify()` and `Content-Type: 'application/json'` for plain objects.
 - Await/Async Promise interface works as you know and love.
-- Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance. Can be caught as normal with `.catch()` or `try {} catch (error) {}`.
-- Advanced [Promise interface](https://www.npmjs.com/swear) so you can concatenate operations easily.
+- Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance.
+- Advanced [Promise interface](https://www.npmjs.com/swear) for better scripting.
 - Import with the shorthand for tighter syntax. `import { get, post } from 'fch';`.
 - Easily define shared options straight on the root `fetch.baseUrl = "https://...";`.
-- Great Interceptors as you know and love from Axios.
+- Interceptors: `before` (the request), `after` (the response) and `error` (it fails).
+- Deduplicates parallel GET requests.
+- Configurable to return either just the body, or the full response.
+- [TODO]: cache engine with "highs" and "lows", great for scrapping
+- [TODO]: rate-limiting of requests (N-second, or N-parallel), great for scrapping
 
 ## Getting Started
 
@@ -78,22 +83,35 @@ const name = await api.get("/users/1").data.name;
 
 ### Interceptors
 
-You can also easily add interceptors:
+You can also easily add the interceptors `before`, `after` and `error`:
 
 ```js
 // Perform an action or request transformation before the request is sent
-api.before(async req => {
+fch.before = async req => {
   // Normalized request ready to be sent
   ...
   return req;
-});
+};
 
 // Perform an action or data transformation after the request is finished
-api.after(async res => {
+fch.after = async res => {
   // Full response as just after the request is made
   ...
   return res;
-});
+};
+
+// Perform an action or data transformation when an error is thrown
+fch.error = async err => {
+  // Need to re-throw if we want to throw on error
+  ...
+  throw err;
+
+  // OR, resolve it as if it didn't fail
+  return err.response;
+
+  // OR, resolve it with a custom value
+  return { message: 'Request failed with a code ' + err.response.status };
+};
 ```
 
 
@@ -137,4 +155,102 @@ it("can opt out locally", async () => {
   expect(res).toEqual(["a", "b", "a"]);
   expect(fetch.mock.calls.length).toEqual(2);
 });
+```
+
+
+## How to
+
+### Stop errors from throwing
+
+While you can handle this on a per-request basis, if you want to overwrite the global behavior you can just do:
+
+```js
+import fch from 'fch';
+fch.error = error => error.response;
+
+const res = fch('/notfound');
+expect(res.status).toBe(404);
+```
+
+Just that, then when there's an error it'll just return as usual, e.g.:
+
+```js
+import fch from 'fch';
+fch.error = error => error.response;
+
+const res = fch('/notfound');
+expect(res.status).toBe(404);
+```
+
+### Return the full response
+
+By default a successful request will just return the data. However this one is configurable on a global level:
+
+```js
+import fch from 'fch';
+fch.output = 'response';  // Valid values are 'body' (default) or 'response'
+
+const res = await fch('/hello');
+```
+
+Or on a per-request level:
+
+```js
+import fch from 'fch';
+
+// Valid values are 'body' (default) or 'response'
+const res = await fch('/hello', { output: 'response' });
+
+// Does not affect others
+const body = await fch('/hello');
+```
+
+
+### Set a base URL
+
+There's a configuration parameter for that:
+
+```js
+import fch from 'fch';
+fch.baseUrl = 'https://api.filemon.io/';
+
+// Calls "https://api.filemon.io/blabla/"
+const body = await fch.get('/blabla/');
+```
+
+
+### Set the authorization headers
+
+You can set that globally as a header:
+
+```js
+import fch from 'fch';
+fch.headers.Authorization = 'bearer abc';
+
+const me = await fch('/users/me');
+```
+
+Globally on a per-request basis, for example if you take the value from localStorage:
+
+```js
+import fch from 'fch';
+
+// All the requests will add the Authorization header when the token is
+// in localStorage
+fch.before = req => {
+  if (localStorage.get('token')) {
+    req.headers.Authorization = 'bearer ' + localStorage.get('token');
+  }
+  return req;
+};
+
+const me = await fch('/users/me');
+```
+
+Or on a per-request basis, though we wouldn't recommend this:
+
+```js
+import fch from 'fch';
+
+const me = await fch('/users/me', { headers: { Authorization: 'bearer abc' } });
 ```

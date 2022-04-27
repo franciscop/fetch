@@ -1,27 +1,31 @@
 {
   "name": "fch",
-  "version": "0.3.1",
-  "description": "Fetch interface with get queue, credentials, reject on http error and better promises",
-  "main": "fetch.js",
-  "type": "module",
-  "scripts": {
-    "start": "npm run watch # Start ~= Start dev",
-    "build": "rollup fetch.js --name fch --output.format umd | uglifyjs -o fetch.min.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles",
-    "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles",
-    "gzip": "gzip -c fetch.min.js | wc -c && echo 'bytes' # Only for Unix"
-  },
-  "keywords": [],
+  "version": "2.0.0",
+  "description": "Fetch interface with better promises, deduplication, defaults, etc.",
+  "homepage": "https://github.com/franciscop/fetch",
+  "repository": "https://github.com/franciscop/fetch.git",
+  "bugs": "https://github.com/franciscop/fetch/issues",
+  "funding": "https://www.paypal.me/franciscopresencia/19",
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
+  "scripts": {
+    "start": "npm run watch # Start ~= Start dev",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles",
+    "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles"
+  },
+  "keywords": [
+    "fetch",
+    "axios",
+    "http",
+    "https",
+    "async",
+    "ajax"
+  ],
+  "main": "fetch.js",
+  "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/franciscop/fetch.git"
-  },
-  "bugs": "https://github.com/franciscop/fetch/issues",
   "dependencies": {
     "swear": "^1.1.0"
   },

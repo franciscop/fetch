@@ -11,64 +11,130 @@ const hasPlainBody = (options) => {
   return true;
 };
 
-const fch = (url, { dedupe, ...options } = {}) => {
-  // Global dedupe OR local parameter OR default to "true". Allows for "false"
-  dedupe = fch.dedupe ?? dedupe ?? true;
-  options = { method: "get", headers: {}, ...options };
+const createUrl = (path, base) => {
+  if (!base) return path;
+  const url = new URL(path, base);
+  return url.href;
+};
 
-  if (fch.baseUrl) {
-    const fullUrl = new URL(url, fch.baseUrl);
-    url = fullUrl.href;
-  }
+const createHeaders = (user, base) => {
+  // User-set headers overwrite the base headers
+  const headers = { ...base, ...user };
 
-  // NORMALIZE to LOWERCASE
-  options.method = options.method.toLowerCase();
   // Make the headers lowercase
-  for (let key in options.headers) {
-    const value = options.headers[key];
-    delete options.headers[key];
-    options.headers[key.toLowerCase()] = value;
+  for (let key in headers) {
+    const value = headers[key];
+    delete headers[key];
+    headers[key.toLowerCase()] = value;
   }
 
-  // GET requests should dedupe ongoing requests
-  if (options.method === "get") {
-    if (ongoing.get(url) && dedupe) return ongoing.get(url);
-  }
+  return headers;
+};
 
-  // JSON-encode plain objects
-  if (hasPlainBody(options)) {
-    options.body = JSON.stringify(options.body);
-    options.headers["content-type"] = "application/json; charset=utf-8";
-  }
-
-  const fetchPromise = fetch(url, options).then((res) => {
+const createFetch = (request, { after, dedupe, error, output }) => {
+  return fetch(request.url, request).then(async (res) => {
     // No longer ongoing at this point
-    ongoing.delete(url);
+    if (dedupe) dedupe.clear();
 
-    // Everything is good, just keep going
+    // Need to manually create it to set some things like the proper response
+    let response = {
+      status: res.status,
+      statusText: res.statusText,
+      headers: {},
+    };
+    for (let key of res.headers.keys()) {
+      response.headers[key.toLowerCase()] = res.headers.get(key);
+    }
+
+    // Oops, throw it
     if (!res.ok) {
-      // Oops, throw it
-      const error = new Error(res.statusText);
-      error.response = res;
-      return Promise.reject(error);
+      const err = new Error(res.statusText);
+      err.response = response;
+      return error(err);
     }
 
     // Automatically parse the response
-    if (res.headers.get("content-type").includes("application/json")) {
-      return res.json();
+    const isJson = res.headers.get("content-type").includes("application/json");
+    response.body = await (isJson ? res.json() : res.text());
+
+    // Hijack the response and modify it
+    if (after) {
+      response = after(response);
+    }
+
+    if (output === "body") {
+      return response.body;
     } else {
-      return res.text();
+      return response;
     }
   });
+};
 
-  if (!dedupe || options.method !== "get") {
-    return fetchPromise;
+const fch = swear((url, options = {}) => {
+  // Second parameter always has to be an object, even when it defaults
+  if (typeof options !== "object") options = {};
+
+  // Accept either fch(options) or fch(url, options)
+  options = typeof url === "string" ? { url, ...options } : url;
+
+  // Absolute URL if possible; Default method; merge the default headers
+  options.url = createUrl(options.url, fch.baseUrl);
+  options.method = (options.method ?? fch.method).toLowerCase();
+  options.headers = createHeaders(options.headers, fch.headers);
+
+  let {
+    dedupe = fch.dedupe,
+    output = fch.output,
+
+    before = fch.before,
+    after = fch.after,
+    error = fch.error,
+
+    ...request
+  } = options; // Local option OR global value (including defaults)
+
+  if (request.method !== "get") {
+    dedupe = false;
+  }
+  if (dedupe) {
+    dedupe = {
+      save: (prom) => {
+        ongoing.set(request.url, prom);
+        return prom;
+      },
+      get: () => ongoing.get(request.url),
+      clear: () => ongoing.delete(request.url),
+    };
   }
 
-  ongoing.set(url, swear(fetchPromise));
+  if (!["body", "response"].includes(output)) {
+    const msg = `options.output needs to be either "body" (default) or "response", not "${output}"`;
+    throw new Error(msg);
+  }
 
-  return ongoing.get(url);
-};
+  // JSON-encode plain objects
+  if (hasPlainBody(request)) {
+    request.body = JSON.stringify(request.body);
+    request.headers["content-type"] = "application/json; charset=utf-8";
+  }
+
+  // Hijack the requeset and modify it
+  if (before) {
+    request = before(request);
+  }
+
+  // It should be cached
+  if (dedupe) {
+    // It's already cached! Just return it
+    if (dedupe.get()) return dedupe.get();
+
+    // Otherwise, save it in the cache and return the promise
+    return dedupe.save(createFetch(request, { dedupe, output, error, after }));
+  } else {
+    // PUT, POST, etc should never dedupe and just return the plain request
+    return createFetch(request, { output, error, after });
+  }
+});
 
 fch.get = (url, options = {}) => fch(url, { ...options, method: "get" });
 fch.head = (url, options = {}) => fch(url, { ...options, method: "head" });
@@ -76,5 +142,18 @@ fch.post = (url, options = {}) => fch(url, { ...options, method: "post" });
 fch.patch = (url, options = {}) => fch(url, { ...options, method: "patch" });
 fch.put = (url, options = {}) => fch(url, { ...options, method: "put" });
 fch.del = (url, options = {}) => fch(url, { ...options, method: "delete" });
+
+// Default values
+fch.method = "get";
+fch.headers = {};
+
+// Default options
+fch.dedupe = true;
+fch.output = "body";
+
+// Interceptors
+fch.before = (request) => request;
+fch.after = (response) => response;
+fch.error = (error) => Promise.reject(error);
 
 export default fch;

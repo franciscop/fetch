@@ -10,13 +10,52 @@ describe("fetch()", () => {
     fetch.resetMocks();
   });
 
-  it("works", async () => {
+  it("can create a basic request", async () => {
+    fetch.once("hello");
+    const data = await fch("/");
+
+    expect(data).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it("accepts Axios syntax as well", async () => {
+    fetch.once("hello");
+    const data = await fch({ url: "/" });
+
+    expect(data).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it("can receive a full response", async () => {
+    fetch.once("hello", { status: 200, headers: { hello: "world" } });
+    const res = await fch("/", { output: "response" });
+
+    expect(res.body).toEqual("hello");
+    expect(res.status).toEqual(200);
+    expect(res.statusText).toEqual("OK");
+    expect(res.headers.hello).toEqual("world");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("works with JSON", async () => {
     fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
     const data = await fch("https://google.com/");
 
     expect(data).toEqual({ secret: "12345" });
     expect(fetch.mock.calls.length).toEqual(1);
     expect(fetch.mock.calls[0][0]).toEqual("https://google.com/");
+  });
+
+  it("can use the swear interface", async () => {
+    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
+    const hello = await fch("/").secret;
+    expect(hello).toEqual("12345");
   });
 
   it("can use the baseUrl", async () => {
@@ -138,11 +177,106 @@ describe("fetch()", () => {
     });
   });
 
+  it("throws with the wrong 'output' option", async () => {
+    fetch.once("hello");
+    await expect(fch("/", { output: "abc" })).rejects.toMatchObject({
+      message: `options.output needs to be either "body" (default) or "response", not "abc"`,
+    });
+  });
+
   it("can accept rejections", async () => {
     fetch.mockRejectOnce(new Error("fake error message"));
-    await expect(fch("/")).rejects.toMatchObject({
+    await expect(fch("/error")).rejects.toMatchObject({
       message: "fake error message",
     });
+  });
+});
+
+describe("interceptors", () => {
+  beforeEach(() => {
+    fetch.resetMocks();
+  });
+  afterEach(() => {
+    fetch.resetMocks();
+    delete fch.before;
+    delete fch.after;
+  });
+
+  it("can create a before interceptor", async () => {
+    fetch.once("hello");
+    const data = await fch("/", {
+      before: (req) => {
+        req.url = "/hello";
+        req.method = "put";
+        return req;
+      },
+    });
+
+    expect(data).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("put");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it("can create a global before interceptor", async () => {
+    fetch.once("hello");
+    fch.before = (req) => {
+      req.url = "/hello";
+      req.method = "put";
+      return req;
+    };
+    const data = await fch("/");
+
+    expect(data).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("put");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+
+    delete fch.before;
+  });
+
+  it("can create an after interceptor", async () => {
+    fetch.once("hello", { status: 201, headers: { hello: "world" } });
+    const res = await fch("/", {
+      output: "response",
+      after: (res) => {
+        res.body = "bye";
+        res.status = 200;
+        res.headers.hello = "world";
+        return res;
+      },
+    });
+
+    expect(res.body).toEqual("bye");
+    expect(res.status).toEqual(200);
+    expect(res.statusText).toEqual("Created");
+    expect(res.headers.hello).toEqual("world");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it("can create a global after interceptor", async () => {
+    fetch.once("hello", { status: 201, headers: { hello: "world" } });
+    fch.after = (res) => {
+      res.body = "bye";
+      res.status = 200;
+      res.headers.hello = "world";
+      return res;
+    };
+    const res = await fch("/", { output: "response" });
+
+    expect(res.body).toEqual("bye");
+    expect(res.status).toEqual(200);
+    expect(res.statusText).toEqual("Created");
+    expect(res.headers.hello).toEqual("world");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
   });
 });
 
@@ -154,6 +288,14 @@ describe("dedupe network calls", () => {
   it("dedupes ongoing/parallel calls", async () => {
     fetch.once("a").once("b");
     const res = await Promise.all([fch("/a"), fch("/a")]);
+
+    expect(res).toEqual(["a", "a"]);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("dedupes named calls", async () => {
+    fetch.once("a").once("b");
+    const res = await Promise.all([fch.get("/a"), fch.get("/a")]);
 
     expect(res).toEqual(["a", "a"]);
     expect(fetch.mock.calls.length).toEqual(1);
@@ -194,7 +336,7 @@ describe("dedupe network calls", () => {
 
     expect(res).toEqual(["a", "b", "c"]);
     expect(fetch.mock.calls.length).toEqual(3);
-    fch.dedupe = undefined;
+    fch.dedupe = true;
   });
 
   it("does NOT dedupe/cache serial requests", async () => {
@@ -203,6 +345,26 @@ describe("dedupe network calls", () => {
     const resb = await fch("/a");
 
     expect([resa, resb]).toEqual(["a", "b"]);
+    expect(fetch.mock.calls.length).toEqual(2);
+  });
+
+  it("does NOT dedupe/cache other request types", async () => {
+    fetch.once("a").once("b");
+    const res = await Promise.all([fch.get("/a"), fch.post("/a")]);
+
+    expect(res).toEqual(["a", "b"]);
+    expect(fetch.mock.calls.length).toEqual(2);
+  });
+
+  it("NOT deduping are invisible for other request", async () => {
+    fetch.once("a").once("b").once("c");
+    const res = await Promise.all([
+      fch.get("/a"),
+      fch.post("/a"),
+      fch.get("/a"),
+    ]);
+
+    expect(res).toEqual(["a", "b", "a"]);
     expect(fetch.mock.calls.length).toEqual(2);
   });
 });
