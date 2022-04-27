@@ -12,9 +12,9 @@ describe("fetch()", () => {
 
   it("can create a basic request", async () => {
     fetch.once("hello");
-    const data = await fch("/");
+    const body = await fch("/");
 
-    expect(data).toEqual("hello");
+    expect(body).toEqual("hello");
     expect(fetch.mock.calls.length).toEqual(1);
     expect(fetch.mock.calls[0][0]).toEqual("/");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
@@ -23,9 +23,9 @@ describe("fetch()", () => {
 
   it("accepts Axios syntax as well", async () => {
     fetch.once("hello");
-    const data = await fch({ url: "/" });
+    const body = await fch({ url: "/" });
 
-    expect(data).toEqual("hello");
+    expect(body).toEqual("hello");
     expect(fetch.mock.calls.length).toEqual(1);
     expect(fetch.mock.calls[0][0]).toEqual("/");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
@@ -45,9 +45,9 @@ describe("fetch()", () => {
 
   it("works with JSON", async () => {
     fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
-    const data = await fch("https://google.com/");
+    const body = await fch("https://google.com/");
 
-    expect(data).toEqual({ secret: "12345" });
+    expect(body).toEqual({ secret: "12345" });
     expect(fetch.mock.calls.length).toEqual(1);
     expect(fetch.mock.calls[0][0]).toEqual("https://google.com/");
   });
@@ -61,8 +61,8 @@ describe("fetch()", () => {
   it("can use the baseUrl", async () => {
     fetch.once("hi");
     fch.baseUrl = "https://google.com/";
-    const data = await fch.get("/hello");
-    expect(data).toBe("hi");
+    const body = await fch.get("/hello");
+    expect(body).toBe("hi");
     expect(fetch.mock.calls[0][0]).toBe("https://google.com/hello");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
     fch.baseUrl = null;
@@ -70,8 +70,8 @@ describe("fetch()", () => {
 
   it("can use the `fetch.get()` shorthand", async () => {
     fetch.once("my-data");
-    const data = await fch.get("/");
-    expect(data).toBe("my-data");
+    const body = await fch.get("/");
+    expect(body).toBe("my-data");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
   });
 
@@ -204,7 +204,7 @@ describe("interceptors", () => {
 
   it("can create a before interceptor", async () => {
     fetch.once("hello");
-    const data = await fch("/", {
+    const body = await fch("/", {
       before: (req) => {
         req.url = "/hello";
         req.method = "put";
@@ -212,7 +212,7 @@ describe("interceptors", () => {
       },
     });
 
-    expect(data).toEqual("hello");
+    expect(body).toEqual("hello");
     expect(fetch.mock.calls.length).toEqual(1);
     expect(fetch.mock.calls[0][0]).toEqual("/hello");
     expect(fetch.mock.calls[0][1].method).toEqual("put");

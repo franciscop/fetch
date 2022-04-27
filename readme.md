@@ -8,10 +8,8 @@ const mew = await api("https://pokeapi.co/pokemon/150");
 console.log(mew);
 ```
 
-`fch` is a better `fetch()`:
-
-- Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for plain objects.
-- Automatically parse server response as json if it includes the headers, or text otherwise.
+- Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for objects.
+- Automatically parse server response taking into account the headers.
 - Works the same way in Node.js and the browser.
 - Await/Async Promise interface works as you know and love.
 - Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance.
@@ -20,26 +18,30 @@ console.log(mew);
 - Interceptors: `before` (the request), `after` (the response) and `error` (it fails).
 - Deduplicates parallel GET requests.
 - Configurable to return either just the body, or the full response.
-- [TODO]: cache engine with "highs" and "lows", great for scrapping
-- [TODO]: rate-limiting of requests (N-second, or N-parallel), great for scrapping
 
 These are the available options and their defaults:
 
-- `api.baseUrl = null;` Set an API endpoint
-- `api.method = 'get';` Default method to use for api()
-- `api.headers = {};` Merged with the headers on a per-request basis
-- `api.dedupe = true;` Avoid parallel GET requests to the same path
-- `api.output = 'body';` Return the body; use 'response' for the full response
-- `api.before = req => req;` Interceptor executed before sending the request
-- `api.after = res => res;` Handle the responses before returning them
-- `api.error = err => Promise.reject(err);` handle errors thrown by fch
-- `api(url, { method, body, headers, ... })` make the main requests
-- `api.get(url, { headers, ... });` helper for convenience
-- `api.head(url, { headers, ... });` helper for convenience
-- `api.post(url, { body, headers, ... });` helper for convenience
-- `api.patch(url, { body, headers, ... });` helper for convenience
-- `api.put(url, { body, headers, ... });` helper for convenience
-- `api.del(url, { body, headers, ... });` helper for convenience
+| Methods                              | Description                           |
+|--------------------------------------|---------------------------------------|
+|`api(url, { method, body, headers })` | Generic fetch-like function           |
+|`api.get(url, { headers })`           | Make GET requests (no body)           |
+|`api.head(url, { headers })`          | Make HEAD requests (no body)          |
+|`api.post(url, { body, headers })`    | Make POST requests                    |
+|`api.patch(url, { body, headers })`   | Make PATCH requests                   |
+|`api.put(url, { body, headers })`     | Make PUT requests                     |
+|`api.del(url, { body, headers })`     | Make DELETE requests                  |
+
+|Options/variables |Default        |Description                                |
+|------------------|---------------|-------------------------------------------|
+|`url`             |`null`         |The path or full url for the request       |
+|`api.baseUrl`     |`null`         |The shared base of the API                 |
+|`api.method`      |`"get"`        |Default method to use for the call         |
+|`api.headers`     |`{}`           |Shared headers across all requests         |
+|`api.dedupe`      |`true`         |Reuse GET requests made concurrently       |
+|`api.output`      |`"body"`       |The return value of the API call           |
+|`api.before`      |`req => req`   |Process the request before sending it      |
+|`api.after`       |`res => res`   |Process the response before receiving it   |
+|`api.error`       |`err => reject(err)` |Process errors before returning them |
 
 ## Getting Started
 
@@ -53,8 +55,7 @@ Then import it to be able to use it in your code:
 
 ```js
 import api from 'fch';
-
-const data = await api.get('/');
+const body = await api.get('/');
 ```
 
 ## Options
