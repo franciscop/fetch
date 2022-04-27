@@ -3,33 +3,34 @@
   "version": "0.3.1",
   "description": "Fetch interface with get queue, credentials, reject on http error and better promises",
   "main": "fetch.js",
+  "type": "module",
   "scripts": {
     "start": "npm run watch # Start ~= Start dev",
     "build": "rollup fetch.js --name fch --output.format umd | uglifyjs -o fetch.min.js",
-    "test": "npm run build && jest --coverage --detectOpenHandles",
-    "watch": "nodemon --exec \"npm run build && npm test && npm run gzip\" --watch src --watch test --watch webpack.config.js --watch package.json",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles",
+    "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles",
     "gzip": "gzip -c fetch.min.js | wc -c && echo 'bytes' # Only for Unix"
   },
   "keywords": [],
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/franciscop/fetch.git"
   },
-  "bugs": {
-    "url": "https://github.com/franciscop/fetch/issues"
-  },
+  "bugs": "https://github.com/franciscop/fetch/issues",
   "dependencies": {
-    "isomorphic-fetch": "^2.2.1",
-    "magic-promises": "^1.2.3"
+    "swear": "^1.1.0"
   },
   "devDependencies": {
-    "babel-core": "^6.26.0",
-    "babel-jest": "^21.2.0",
-    "babel-preset-env": "^1.6.1",
-    "jest": "^23.5.0",
-    "jest-fetch-mock": "^1.6.6",
-    "uglify-es": "^3.3.9"
+    "jest": "^28.0.1",
+    "jest-fetch-mock": "^3.0.3"
+  },
+  "jest": {
+    "testEnvironment": "jest-environment-node",
+    "transform": {}
   }
 }

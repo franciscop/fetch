@@ -1,49 +1,47 @@
-import magic from './node_modules/magic-promises/magic.js';
-
-if (typeof require !== 'undefined') {
-  require('isomorphic-fetch');
-}
+import swear from "swear";
 
 // To avoid making parallel requests to the same url if one is ongoing
 const ongoing = new Map();
 
 // Plain-ish object
-const hasPlainBody = options => {
-  if (options.headers['content-type']) return;
-  if (typeof options.body !== 'object') return;
+const hasPlainBody = (options) => {
+  if (options.headers["content-type"]) return;
+  if (typeof options.body !== "object") return;
   if (options.body instanceof FormData) return;
   return true;
 };
 
-const fch = (url, options = {}) => {
+const fch = (url, { dedupe, ...options } = {}) => {
+  // Global dedupe OR local parameter OR default to "true". Allows for "false"
+  dedupe = fch.dedupe ?? dedupe ?? true;
+  options = { method: "get", headers: {}, ...options };
 
-  options = {
-    method: 'get',
-    headers: {},
-    ...(typeof options === 'object' ? options : {})
-  };
-
-  // GET requests should not have race conditions
-  if (options.method.toLowerCase() === 'get') {
-    if (ongoing.get(url)) return ongoing.get(url);
+  if (fch.baseUrl) {
+    const fullUrl = new URL(url, fch.baseUrl);
+    url = fullUrl.href;
   }
 
-  const headers = options.headers;
-
+  // NORMALIZE to LOWERCASE
+  options.method = options.method.toLowerCase();
   // Make the headers lowercase
-  for (let key in headers) {
-    const value = headers[key];
-    delete headers[key];
-    headers[key.toLowerCase()] = value;
+  for (let key in options.headers) {
+    const value = options.headers[key];
+    delete options.headers[key];
+    options.headers[key.toLowerCase()] = value;
+  }
+
+  // GET requests should dedupe ongoing requests
+  if (options.method === "get") {
+    if (ongoing.get(url) && dedupe) return ongoing.get(url);
   }
 
   // JSON-encode plain objects
   if (hasPlainBody(options)) {
     options.body = JSON.stringify(options.body);
-    headers['content-type'] = 'application/json; charset=utf-8';
+    options.headers["content-type"] = "application/json; charset=utf-8";
   }
 
-  ongoing.set(url, magic(fetch(url, { ...options, headers }).then(res => {
+  const fetchPromise = fetch(url, options).then((res) => {
     // No longer ongoing at this point
     ongoing.delete(url);
 
@@ -55,25 +53,28 @@ const fch = (url, options = {}) => {
       return Promise.reject(error);
     }
 
-    const mem = new Map();
-    return new Proxy(res, { get: (target, key) => {
-      if (['then', 'catch', 'finally'].includes(key)) return res[key];
-      return () => {
-        if (!mem.get(key)) {
-          mem.set(key, target[key]());
-        }
-        return mem.get(key);
-      };
-    }});
-  })));
+    // Automatically parse the response
+    if (res.headers.get("content-type").includes("application/json")) {
+      return res.json();
+    } else {
+      return res.text();
+    }
+  });
+
+  if (!dedupe || options.method !== "get") {
+    return fetchPromise;
+  }
+
+  ongoing.set(url, swear(fetchPromise));
 
   return ongoing.get(url);
 };
 
-fch.get = (url, options = {}) => fch(url, { ...options, method: 'get' });
-fch.post = (url, options = {}) => fch(url, { ...options, method: 'post' });
-fch.patch = (url, options = {}) => fch(url, { ...options, method: 'patch' });
-fch.put = (url, options = {}) => fch(url, { ...options, method: 'put' });
-fch.del = (url, options = {}) => fch(url, { ...options, method: 'delete' });
+fch.get = (url, options = {}) => fch(url, { ...options, method: "get" });
+fch.head = (url, options = {}) => fch(url, { ...options, method: "head" });
+fch.post = (url, options = {}) => fch(url, { ...options, method: "post" });
+fch.patch = (url, options = {}) => fch(url, { ...options, method: "patch" });
+fch.put = (url, options = {}) => fch(url, { ...options, method: "put" });
+fch.del = (url, options = {}) => fch(url, { ...options, method: "delete" });
 
 export default fch;
