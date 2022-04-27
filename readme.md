@@ -25,21 +25,21 @@ console.log(mew);
 
 These are the available options and their defaults:
 
-- `api.baseUrl = null;`: Set an API endpoint
-- `api.method = 'get';`: Default method to use for api()
-- `api.headers = {};`: Merged with the headers on a per-request basis
-- `api.dedupe = true;`: Avoid parallel GET requests to the same path
-- `api.output = 'body';`: Return the body; use 'response' for the full response
-- `api.before = req => req;`: Interceptor executed before sending the request
-- `api.after = res => res;`: Handle the responses before returning them
-- `api.error = err => Promise.reject(err);`: handle any error thrown by fch
-- `api(url, { method, body, headers, ... })`
-- `api.get(url, { headers, ... });`: helper for convenience
-- `api.head(url, { headers, ... });`: helper for convenience
-- `api.post(url, { body, headers, ... });`: helper for convenience
-- `api.patch(url, { body, headers, ... });`: helper for convenience
-- `api.put(url, { body, headers, ... });`: helper for convenience
-- `api.del(url, { body, headers, ... });`: helper for convenience
+- `api.baseUrl = null;` Set an API endpoint
+- `api.method = 'get';` Default method to use for api()
+- `api.headers = {};` Merged with the headers on a per-request basis
+- `api.dedupe = true;` Avoid parallel GET requests to the same path
+- `api.output = 'body';` Return the body; use 'response' for the full response
+- `api.before = req => req;` Interceptor executed before sending the request
+- `api.after = res => res;` Handle the responses before returning them
+- `api.error = err => Promise.reject(err);` handle errors thrown by fch
+- `api(url, { method, body, headers, ... })` make the main requests
+- `api.get(url, { headers, ... });` helper for convenience
+- `api.head(url, { headers, ... });` helper for convenience
+- `api.post(url, { body, headers, ... });` helper for convenience
+- `api.patch(url, { body, headers, ... });` helper for convenience
+- `api.put(url, { body, headers, ... });` helper for convenience
+- `api.del(url, { body, headers, ... });` helper for convenience
 
 ## Getting Started
 
