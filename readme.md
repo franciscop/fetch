@@ -4,10 +4,7 @@ A library to make API calls easier. Similar to Axios, but tiny size and simpler 
 
 ```js
 import api from "fch";
-
-api.baseUrl = "https://pokeapi.co/";
-
-const mew = await api("/pokemon/150");
+const mew = await api("https://pokeapi.co/pokemon/150");
 console.log(mew);
 ```
 
@@ -15,17 +12,34 @@ console.log(mew);
 
 - Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for plain objects.
 - Automatically parse server response as json if it includes the headers, or text otherwise.
-- Isomorphic fetch(); it works the same way in the browser and server.
+- Works the same way in Node.js and the browser.
 - Await/Async Promise interface works as you know and love.
 - Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance.
 - Advanced [Promise interface](https://www.npmjs.com/swear) for better scripting.
-- Import with the shorthand for tighter syntax. `import { get, post } from 'fch';`.
 - Easily define shared options straight on the root `fetch.baseUrl = "https://...";`.
 - Interceptors: `before` (the request), `after` (the response) and `error` (it fails).
 - Deduplicates parallel GET requests.
 - Configurable to return either just the body, or the full response.
 - [TODO]: cache engine with "highs" and "lows", great for scrapping
 - [TODO]: rate-limiting of requests (N-second, or N-parallel), great for scrapping
+
+These are the available options and their defaults:
+
+- `api.baseUrl = null;`: Set an API endpoint
+- `api.method = 'get';`: Default method to use for api()
+- `api.headers = {};`: Merged with the headers on a per-request basis
+- `api.dedupe = true;`: Avoid parallel GET requests to the same path
+- `api.output = 'body';`: Return the body; use 'response' for the full response
+- `api.before = req => req;`: Interceptor executed before sending the request
+- `api.after = res => res;`: Handle the responses before returning them
+- `api.error = err => Promise.reject(err);`: handle any error thrown by fch
+- `api(url, { method, body, headers, ... })`
+- `api.get(url, { headers, ... });`: helper for convenience
+- `api.head(url, { headers, ... });`: helper for convenience
+- `api.post(url, { body, headers, ... });`: helper for convenience
+- `api.patch(url, { body, headers, ... });`: helper for convenience
+- `api.put(url, { body, headers, ... });`: helper for convenience
+- `api.del(url, { body, headers, ... });`: helper for convenience
 
 ## Getting Started
 
@@ -43,79 +57,124 @@ import api from 'fch';
 const data = await api.get('/');
 ```
 
-
-### Advanced promise interface
-
-This library has a couple of aces up its sleeve. First, it [has a better Promise interface](https://www.npmjs.com/swear):
+## Options
 
 ```js
-import api from "fch";
+import api, { get, post, put, ... } from 'fch';
 
-// You can keep performing actions like it was sync
-const firstFriendName = await api.get("/friends")[0].name;
-console.log(firstFriendName);
+// General options with their defaults; most of these are also parameters:
+api.baseUrl = null;  // Set an API endpoint
+api.method = 'get';  // Default method to use for api()
+api.headers = {};    // Is merged with the headers on a per-request basis
+
+// Control simple variables
+api.dedupe = true;   // Avoid parallel GET requests to the same path
+api.output = 'body'; // Return the body; use 'response' for the full response
+
+// Interceptors
+api.before = req => req;
+api.after = res => res;
+api.error = err => Promise.reject(err);
+
+// Similar API to fetch()
+api(url, { method, body, headers, ... });
+
+// Our highly recommended style:
+api.get(url, { headers, ... });
+api.post(url, { body, headers, ... });
+api.put(url, { body, headers, ... });
+// ...
+
+// Just import/use the method you need
+get(url, { headers, ... });
+post(url, { body, headers, ... });
+put(url, { body, headers, ... });
+// ...
 ```
 
-### Define shared options
+### URL
 
-You can also define values straight away:
+This is normally the first argument, though technically you can use both styles:
 
 ```js
-import api from "fch";
+// All of these methods are valid
+import api from 'fch';
 
-api.baseUrl = "https://pokeapi.co/";
+// We strongly recommend using this style for your normal code:
+await api.post('/hello', { body: '...', headers: {} })
 
-const mew = await api.get("/pokemon/150");
-console.log(mew);
+// Try to avoid these, but they are also valid:
+await api('/hello', { method: 'post', body: '...', headers: {} });
+await api({ url: '/hello', method: 'post', headers: {}, body: '...' });
+await api.post({ url: '/hello', headers: {}, body: '...' });
 ```
 
-If you prefer Axios' style of outputting the whole response, you can do:
+It can be either absolute or relative, in which case it'll use the local one in the page. It's recommending to set `baseUrl`:
 
 ```js
-// Default, already only returns the data on a successful call
-api.output = "data";
-const name = await api.get("/users/1").name;
-
-// Axios-like
-api.output = "response";
-const name = await api.get("/users/1").data.name;
+import api from 'fch';
+api.baseUrl = 'https//api.filemon.io/';
+api.get('/hello');
+// Called https//api.filemon.io/hello
 ```
 
-### Interceptors
+### Body
 
-You can also easily add the interceptors `before`, `after` and `error`:
+The `body` can be a string, a FormData instance or a plain object. If it's an object, it'll be stringified and the header `application/json` will be added. Otherwise it'll be sent as plain text:
 
 ```js
-// Perform an action or request transformation before the request is sent
-fch.before = async req => {
-  // Normalized request ready to be sent
-  ...
-  return req;
+import api from 'api';
+
+// Sending plain text
+await api.post('/houses', { body: 'plain text' });
+
+// Will JSON.stringify it internally, and add the JSON headers
+await api.post('/houses', { body: { id: 1, name: 'Cute Cottage' } });
+
+// Send it as FormData
+form.onsubmit = e => {
+  await api.post('/houses', { body: new FormData(e.target) });
 };
-
-// Perform an action or data transformation after the request is finished
-fch.after = async res => {
-  // Full response as just after the request is made
-  ...
-  return res;
-};
-
-// Perform an action or data transformation when an error is thrown
-fch.error = async err => {
-  // Need to re-throw if we want to throw on error
-  ...
-  throw err;
-
-  // OR, resolve it as if it didn't fail
-  return err.response;
-
-  // OR, resolve it with a custom value
-  return { message: 'Request failed with a code ' + err.response.status };
-};
 ```
 
 
-## Dedupe
+### Headers
+
+You can define headers globally, in which case they'll be added to every request, or locally, so that they are only added to the current request. You can also add them in the `before` callback:
+
+
+```js
+import api from 'fch';
+api.headers.abc = 'def';
+
+api.get('/helle', { headers: { ghi: 'jkl' } });
+// Total headers on the request:
+// { abc: 'def', ghi: 'jkl' }
+```
+
+
+### Output
+
+This controls whether the call returns just the body (default), or the whole response. It can be controlled globally or on a per-request basis:
+
+```js
+import api from 'fch';
+
+// "body" (default) or "response"
+api.output = 'body';
+
+// Return only the body, this is the default
+const body = await api.get('/data');
+
+// Return the whole response (with .body):
+const response = await api.get('/data', { output: 'response' });
+
+// Throws error
+const invalid = await api.get('/data', { output: 'invalid' });
+```
+
+
+### Dedupe
 
 When you perform a GET request to a given URL, but another GET request *to the same* URL is ongoing, it'll **not** create a new request and instead reuse the response when the first one is finished:
 
@@ -157,28 +216,90 @@ it("can opt out locally", async () => {
 });
 ```
 
+### Interceptors
+
+You can also easily add the interceptors `before`, `after` and `error`:
+
+```js
+// Perform an action or request transformation before the request is sent
+fch.before = async req => {
+  // Normalized request ready to be sent
+  ...
+  return req;
+};
+
+// Perform an action or data transformation after the request is finished
+fch.after = async res => {
+  // Full response as just after the request is made
+  ...
+  return res;
+};
+
+// Perform an action or data transformation when an error is thrown
+fch.error = async err => {
+  // Need to re-throw if we want to throw on error
+  ...
+  throw err;
+
+  // OR, resolve it as if it didn't fail
+  return err.response;
+
+  // OR, resolve it with a custom value
+  return { message: 'Request failed with a code ' + err.response.status };
+};
+```
+
+
+
+### Advanced promise interface
+
+This library uses [the `swear` promise interface](https://www.npmjs.com/swear), which allows you to query operations seamlessly on top of your promise:
+
+```js
+import api from "fch";
+
+// You can keep performing actions like it was sync
+const firstFriendName = await api.get("/friends")[0].name;
+console.log(firstFriendName);
+```
+
+### Define shared options
+
+You can also define values straight away:
+
+```js
+import api from "fch";
+
+api.baseUrl = "https://pokeapi.co/";
+
+const mew = await api.get("/pokemon/150");
+console.log(mew);
+```
+
+If you prefer Axios' style of outputting the whole response, you can do:
+
+```js
+// Default, already only returns the data on a successful call
+api.output = "data";
+const name = await api.get("/users/1").name;
+
+// Axios-like
+api.output = "response";
+const name = await api.get("/users/1").data.name;
+```
+
 
 ## How to
 
 ### Stop errors from throwing
 
-While you can handle this on a per-request basis, if you want to overwrite the global behavior you can just do:
+While you can handle this on a per-request basis, if you want to overwrite the global behavior you can write a interceptor:
 
 ```js
 import fch from 'fch';
 fch.error = error => error.response;
 
-const res = fch('/notfound');
-expect(res.status).toBe(404);
-```
-
-Just that, then when there's an error it'll just return as usual, e.g.:
-
-```js
-import fch from 'fch';
-fch.error = error => error.response;
-
-const res = fch('/notfound');
+const res = await fch('/notfound');
 expect(res.status).toBe(404);
 ```
 
@@ -214,8 +335,8 @@ There's a configuration parameter for that:
 import fch from 'fch';
 fch.baseUrl = 'https://api.filemon.io/';
 
-// Calls "https://api.filemon.io/blabla/"
-const body = await fch.get('/blabla/');
+// Calls "https://api.filemon.io/blabla"
+const body = await fch.get('/blabla');
 ```
 
 
@@ -230,7 +351,7 @@ fch.headers.Authorization = 'bearer abc';
 const me = await fch('/users/me');
 ```
 
-Globally on a per-request basis, for example if you take the value from localStorage:
+Or globally on a per-request basis, for example if you take the value from localStorage:
 
 ```js
 import fch from 'fch';

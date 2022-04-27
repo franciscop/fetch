@@ -136,13 +136,6 @@ const fch = swear((url, options = {}) => {
   }
 });
 
-fch.get = (url, options = {}) => fch(url, { ...options, method: "get" });
-fch.head = (url, options = {}) => fch(url, { ...options, method: "head" });
-fch.post = (url, options = {}) => fch(url, { ...options, method: "post" });
-fch.patch = (url, options = {}) => fch(url, { ...options, method: "patch" });
-fch.put = (url, options = {}) => fch(url, { ...options, method: "put" });
-fch.del = (url, options = {}) => fch(url, { ...options, method: "delete" });
-
 // Default values
 fch.method = "get";
 fch.headers = {};
@@ -156,4 +149,23 @@ fch.before = (request) => request;
 fch.after = (response) => response;
 fch.error = (error) => Promise.reject(error);
 
+const request = (url, opts = {}) => fch(url, { ...opts });
+const get = (url, opts = {}) => fch(url, { ...opts });
+const head = (url, opts = {}) => fch(url, { ...opts, method: "head" });
+const post = (url, opts = {}) => fch(url, { ...opts, method: "post" });
+const patch = (url, opts = {}) => fch(url, { ...opts, method: "patch" });
+const put = (url, opts = {}) => fch(url, { ...opts, method: "put" });
+const del = (url, opts = {}) => fch(url, { ...opts, method: "delete" });
+
+fch.request = request;
+fch.get = get;
+fch.head = head;
+fch.post = post;
+fch.patch = patch;
+fch.put = put;
+fch.del = del;
+
+fch.swear = swear;
+
 export default fch;
+export { request, get, head, post, patch, put, del, swear };
