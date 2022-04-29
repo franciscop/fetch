@@ -4,7 +4,7 @@ A tiny library to make API calls easier. Similar to Axios, but tiny size and sim
 
 ```js
 import api from "fch";
-const mew = await api("https://pokeapi.co/pokemon/150");
+const mew = await api.get("https://pokeapi.co/pokemon/150");
 console.log(mew);
 ```
 
@@ -19,14 +19,15 @@ console.log(mew);
 - Configurable to return either just the body, or the full response.
 
 ```js
-// Calls and methods available:
-api(url, { method, body, headers, ...options })
+import api from 'fch';
+
 api.get(url, { headers, ...options })
 api.head(url, { headers, ...options })
 api.post(url, { body, headers, ...options })
 api.patch(url, { body, headers, ...options })
 api.put(url, { body, headers, ...options })
 api.del(url, { body, headers, ...options })
+
 api.create({ url, body, headers, ...options})
 ```
 
@@ -98,18 +99,54 @@ api.put(url, { body, headers, ... });
 // ...
 ```
 
-### URL
+### Method
 
-This is normally the first argument, though technically you can use both styles:
+The HTTP method to make the request. When using the shorthand, it defaults to `GET`. We recommend using the method syntax:
 
 ```js
-// All of these methods are valid
 import api from 'fch';
 
-// We strongly recommend using this style for your normal code:
+api.get('/cats');
+api.post('/cats', { body: { name: 'snowball' } });
+api.put(`/cats/3`, { body: { name: 'snowball' }});
+```
+
+You can use it with the plain function as an option parameter. The methods are all lowercase but the option as a parameter is case insensitive; it can be either uppercase or lowercase:
+
+```js
+// Recommended way of dealing with methods:
+api.get(...);
+
+// INVALID; won't work
+api.GET(...);
+
+// Both of these are valid:
+api({ method; 'GET' })
+api({ method; 'get'})
+```
+
+Example: adding a new cat and fixing a typo:
+
+```js
+import api from 'fch';
+
+const cats = await api.get('/cats');
+console.log(cats);
+const { id } = await api.post('/cats', { body: { name: 'snowbll' } });
+await api.put(`/cats/${id}`, { body: { name: 'snowball' }})
+```
+
+### Url
+
+Specify where to send the request to. It's normally the first argument, though technically you can use both styles:
+
+```js
+import api from 'fch';
+
+// Recommended way of specifying the Url
 await api.post('/hello', { body: '...', headers: {} })
 
-// Try to avoid these, but they are also valid:
+// These are also valid if you prefer their style; we won't judge
 await api('/hello', { method: 'post', body: '...', headers: {} });
 await api({ url: '/hello', method: 'post', headers: {}, body: '...' });
 await api.post({ url: '/hello', headers: {}, body: '...' });
@@ -143,6 +180,46 @@ await api.post('/houses', { body: { id: 1, name: 'Cute Cottage' } });
 form.onsubmit = e => {
   await api.post('/houses', { body: new FormData(e.target) });
 };
+```
+
+The methods `GET` and `HEAD` do not accept a body and it'll be ignored.
+
+The **response body** will be returned by default as the output of the call:
+
+```js
+const body = await api.get('/cats');
+console.log(body);
+// [{ id: 1, }, ...]
+```
+
+When the server specifies the header `Content-Type` as `application/json`, then we'll attempt to parse the response body and return that as the variable. Otherwise, the plain text will be returned.
+
+When the function returns the response (if you set `output: "response"` as an option), then the body can be accessed as `response.body`:
+
+```js
+const response = await api.get('/cats', { output: 'response' });
+console.log(response.body);
+// [{ id: 1, }, ...]
+```
+
+
+### Query
+
+You can easily pass GET query parameters by using the option `query`:
+
+```js
+api.get('/cats', { query: { limit: 3 } });
+// /cats?limit=3
+```
+
+While rare, some times you might want to persist a query parameter across requests and always include it; in that case, you can define it globally and it'll be added to every request:
+
+```js
+import api from 'fch';
+api.query.myparam = 'abc';
+
+api.get('/cats', { query: { limit: 3 } });
+// /cats?limit=3&myparam=abc
 ```
 
 
@@ -221,7 +298,7 @@ fch('/a', { dedupe: true });  // [DEFAULT] Dedupes GET requests
 fch('/a', { dedupe: false })  // All fetch() calls trigger a network call
 ```
 
-> We do not support deduping other methods right now besides `GET` right now
+> We do not support deduping other methods besides `GET` right now
 
 Note that opting out of deduping a request will _also_ make that request not be reusable, see this test for details:
 
