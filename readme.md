@@ -11,9 +11,9 @@ console.log(mew);
 - Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for objects.
 - Automatically parse server response taking into account the headers.
 - Works the same way in Node.js and the browser.
-- Await/Async Promises. `>= 400 and <= 100` will _reject_ the promise and throw an error.
+- Await/Async Promises. `>= 400 and <= 100` will _reject_ and throw an error.
 - No dependencies; include it with a simple `<script>`
-- Easily define shared options straight on the root `fch.baseUrl = "https://...";`.
+- Easily define shared options straight on the root `fch.baseUrl = "...";`.
 - Interceptors: `before` (the request), `after` (the response) and `error` (it fails).
 - Deduplicates parallel GET requests.
 - Configurable to return either just the body, or the full response.
