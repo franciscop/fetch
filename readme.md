@@ -31,18 +31,19 @@ api.del(url, { body, headers, ...options })
 api.create({ url, body, headers, ...options})
 ```
 
-| Options   | Default            | Description                                 |
-|-----------|--------------------|---------------------------------------------|
-| `url`     | `null`             | The path or full url for the request        |
-| `baseUrl` | `null`             | The shared base of the API                  |
-| `method`  | `"get"`            | Default method to use for the call          |
-| `query`   | `{}`               | Add query parameters to the URL             |
-| `headers` | `{}`               | Shared headers across all requests          |
-| `dedupe`  | `true`             | Reuse GET requests made concurrently        |
-| `output`  | `"body"`           | The return value of the API call            |
-| `before`  | `req => req`       | Process the request before sending it       |
-| `after`   | `res => res`       | Process the response before returning it    |
-| `error`   | `err => throw err` | Process errors before returning them        |
+| Options               | Default   | Description                        |
+| ----------------------| ----------| -----------------------------------|
+| [`method`](#method)   | `"get"`   | Default method to use for the call |
+| [`url`](#url)         | `null`    | The path or url for the request    |
+| [`baseUrl`](#url)     | `null`    | The shared base of the API         |
+| [`body`](#body)       | `null`    | The body to send with the request  |
+| [`query`](#query)     | `{}`      | Add query parameters to the URL    |
+| [`headers`](#headers) | `{}`      | Shared headers across all requests |
+| [`output`](#output)   | `"body"`  | The return value of the API call   |
+| [`dedupe`](#dedupe)   | `true`    | Reuse concurrently GET requests    |
+| [`before`](#interceptors) |`req => req`       |Process the request before sending it    |
+| [`after`](#interceptors)  |`res => res`       |Process the response before returning it |
+| [`error`](#interceptors)  |`err => throw err` |Process errors before returning them     |
 
 ## Getting Started
 
@@ -88,15 +89,6 @@ api.output = 'body'; // Return the body; use 'response' for the full response
 api.before = req => req;
 api.after = res => res;
 api.error = err => Promise.reject(err);
-
-// Similar API to fetch()
-api(url, { method, body, headers, ... });
-
-// Our highly recommended style:
-api.get(url, { headers, ... });
-api.post(url, { body, headers, ... });
-api.put(url, { body, headers, ... });
-// ...
 ```
 
 ### Method
@@ -350,32 +342,6 @@ fch.error = async err => {
 ```
 
 
-### Define shared options
-
-You can also define values straight away:
-
-```js
-import api from "fch";
-
-api.baseUrl = "https://pokeapi.co/";
-
-const mew = await api.get("/pokemon/150");
-console.log(mew);
-```
-
-If you prefer Axios' style of outputting the whole response, you can do:
-
-```js
-// Default, already only returns the data on a successful call
-api.output = "data";
-const name = await api.get("/users/1").name;
-
-// Axios-like
-api.output = "response";
-const name = await api.get("/users/1").data.name;
-```
-
-
 ## How to
 
 ### Stop errors from throwing
@@ -427,7 +393,7 @@ const body = await fch.get('/blabla');
 ```
 
 
-### Set the authorization headers
+### Set authorization headers
 
 You can set that globally as a header:
 
@@ -482,7 +448,9 @@ fch.get('/hello');   // Gets http://localhost:3000/hello (or wherever you are)
 
 Note: for server-side (Node.js) usage, you always want to set `baseUrl`.
 
-### How to cancel an ongoing request?
+
+
+### Cancel ongoing requests
 
 You can cancel ongoing requests [similarly to native fetch()](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort#examples), by passing it a signal:
 
@@ -500,14 +468,34 @@ abortButton.addEventListener('click', () => {
 api.get(url, { signal });
 ```
 
-### What are the differences in Node.js vs Browser?
+
+
+### Define shared options
+
+You can also define values straight away:
+
+```js
+import api from "fch";
+
+api.baseUrl = "https://pokeapi.co/";
+
+const mew = await api.get("/pokemon/150");
+console.log(mew);
+```
+
+You can also [create an instance](#create-an-instance) that will have the same options for all requests made with that instance.
+
+
+
+### Node.js vs Browser
 
 First, we use the native Node.js' fetch() and the browser's native fetch(), so any difference between those also applies to this library. For example, if you were to call `"/"` in the browser it'd refer to the current URL, while in Node.js it'd fail since you need to specify the full URL. Some other places where you might find differences: CORS, cache, etc.
 
 In the library itself there's nothing different between the browser and Node.js, but it might be interesting to note that (if/when implemented) things like cache, etc. in Node.js are normally long-lived and shared, while in a browser request it'd bound to the request itself.
 
 
-### What are the differences with Axios?
+
+### Differences with Axios
 
 The main difference is that things are simplified with fch:
 
