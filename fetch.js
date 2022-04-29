@@ -190,18 +190,11 @@ const create = (defaults = {}) => {
   fch.put = put;
   fch.del = del;
 
+  fch.create = create;
+
   return fch;
 };
 
-// Need to export it globally with `global`, since if we use export default then
-// we cannot load it in the browser as a normal <script>, and if we load it in
-// the browser as a <script module> then we cannot run a normal script after it
-// since the modules are deferred by default. Basically this is a big mess and
-// I wish I could just do if `(typeof window !== 'undefined') window.fch = fch`,
-// but unfortunately that's not possible now and I need this as a traditionally
-// global definition, and then another file to import it as ESM. UGHHH
-let glob = {};
-if (typeof global !== "undefined") glob = global;
-if (typeof window !== "undefined") glob = window;
-glob.fch = create();
-glob.fch.create = create;
+const fch = create();
+
+export default fch;

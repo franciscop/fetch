@@ -1,4 +1,4 @@
-import fch from "./index.js";
+import fch from "./fetch.js";
 import mock from "jest-fetch-mock";
 
 mock.enableMocks();
