@@ -23,6 +23,7 @@
     "ajax"
   ],
   "main": "./fetch.js",
+  "module": "./fetch.js",
   "browser": "./index.js",
   "files": [
     "index.js",
