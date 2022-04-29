@@ -8,15 +8,14 @@ const mew = await api.get("https://pokeapi.co/pokemon/150");
 console.log(mew);
 ```
 
-- Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for objects.
-- Automatically parse server response taking into account the headers.
-- Works the same way in Node.js and the browser.
-- Await/Async Promises. `>= 400 and <= 100` will _reject_ and throw an error.
-- No dependencies; include it with a simple `<script>`
-- Easily define shared options straight on the root `fch.baseUrl = "...";`.
-- Interceptors: `before` (the request), `after` (the response) and `error` (it fails).
+- Create instances with shared options across requests.
+- Automatically encode object and array bodies as JSON.
+- Automatically decode JSON responses based on the headers.
+- Await/Async Promises; `>= 400 and <= 100` will _reject_ with an error.
+- Interceptors: `before` the request, `after` the response and catch with `error`.
 - Deduplicates parallel GET requests.
-- Configurable to return either just the body, or the full response.
+- Works the same way in Node.js and the browser.
+- No dependencies; include it with a simple `<script>` on the browser.
 
 ```js
 import api from 'fch';
