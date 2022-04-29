@@ -1,6 +1,6 @@
 {
   "name": "fch",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Fetch interface with better promises, deduplication, defaults, etc.",
   "homepage": "https://github.com/franciscop/fetch",
   "repository": "https://github.com/franciscop/fetch.git",
