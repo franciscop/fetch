@@ -518,7 +518,7 @@ axios.interceptors.request.use(fn);
 fch.before = fn;
 ```
 
-API size is also strikingly different, with **7.8kb** for Axios and **1kb** for fch.
+API size is also strikingly different, with **7.8kb** for Axios and **1.1kb** for fch.
 
 As disadvantages, I can think of two major ones for `fch`:
 
