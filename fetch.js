@@ -145,8 +145,8 @@ const create = (defaults = {}) => {
       request = before(request);
     }
 
-    // It should be cached
-    if (dedupe) {
+    // It should be cached and it's not being manually manipulated
+    if (dedupe && !request.signal) {
       // It's already cached! Just return it
       if (dedupe.get()) return dedupe.get();
 

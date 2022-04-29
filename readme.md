@@ -387,6 +387,24 @@ fch.get('/hello');   // Gets http://localhost:3000/hello (or wherever you are)
 
 Note: for server-side (Node.js) usage, you always want to set `baseUrl`.
 
+### How to cancel an ongoing request?
+
+You can cancel ongoing requests [similarly to native fetch()](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort#examples), by passing it a signal:
+
+```js
+import api from 'fch';
+
+const controller = new AbortController();
+const signal = controller.signal;
+
+abortButton.addEventListener('click', () => {
+  controller.abort();
+  console.log('Download aborted');
+});
+
+api.get(url, { signal });
+```
+
 ### What are the differences in Node.js vs Browser?
 
 First, we use the native Node.js' fetch() and the browser's native fetch(), so any difference between those also applies to this library. For example, if you were to call `"/"` in the browser it'd refer to the current URL, while in Node.js it'd fail since you need to specify the full URL. Some other places where you might find differences: CORS, cache, etc.
@@ -417,4 +435,4 @@ API size is also strikingly different, with **7.8kb** for Axios and **1.9kb** fo
 As disadvantages, I can think of two major ones for `fch`:
 
 - Requires Node.js 18+, which is the version that includes `fetch()` by default.
-- Does not support some more advanced options,
+- Does not support many of the more advanced options, like `onUploadProgress` nor `onDownloadProgress`.

@@ -3,12 +3,14 @@ import mock from "jest-fetch-mock";
 
 mock.enableMocks();
 
+const delay = (num) => new Promise((done) => setTimeout(done, num));
 const jsonType = "application/json; charset=utf-8";
 const jsonHeaders = { headers: { "Content-Type": jsonType } };
 
 describe("fetch()", () => {
   beforeEach(() => {
     fetch.resetMocks();
+    fch.dedupe = false;
   });
 
   it("can create an empty request", async () => {
@@ -53,6 +55,30 @@ describe("fetch()", () => {
     expect(res.statusText).toEqual("OK");
     expect(res.headers.hello).toEqual("world");
     expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("can cancel an ongoin request", async () => {
+    fetch.once(async () => {
+      await delay(1000); // One full second!
+      return "hello";
+    });
+
+    const aborted = async () => {
+      const controller = new AbortController();
+      const signal = controller.signal;
+      const fchProm = fch("/", { signal });
+
+      await delay(100);
+      controller.abort();
+      await fchProm;
+    };
+
+    expect.assertions(1);
+    try {
+      await aborted();
+    } catch (error) {
+      expect(error.message).toEqual("The operation was aborted. ");
+    }
   });
 
   it("works with JSON", async () => {
@@ -260,6 +286,7 @@ describe("request body variations", () => {
 describe("dedupe network calls", () => {
   beforeEach(() => {
     fetch.resetMocks();
+    fch.dedupe = true;
   });
 
   it("dedupes ongoing/parallel calls", async () => {
