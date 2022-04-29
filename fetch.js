@@ -1,20 +1,26 @@
-import swear from "swear";
-
-// To avoid making parallel requests to the same url if one is ongoing
-const ongoing = new Map();
-
 // Plain-ish object
 const hasPlainBody = (options) => {
   if (options.headers["content-type"]) return;
-  if (typeof options.body !== "object") return;
+  if (!["object", "array"].includes(typeof options.body)) return;
   if (options.body instanceof FormData) return;
   return true;
 };
 
-const createUrl = (path, base) => {
+const createUrl = (url, query, base) => {
+  let [path, urlQuery = {}] = url.split("?");
+
+  // Merge global params with passed params with url params
+  const entries = new URLSearchParams({
+    ...Object.fromEntries(new URLSearchParams(query)),
+    ...Object.fromEntries(new URLSearchParams(urlQuery)),
+  }).toString();
+  if (entries) {
+    path = path + "?" + entries;
+  }
+
   if (!base) return path;
-  const url = new URL(path, base);
-  return url.href;
+  const fullUrl = new URL(path, base);
+  return fullUrl.href;
 };
 
 const createHeaders = (user, base) => {
@@ -30,6 +36,15 @@ const createHeaders = (user, base) => {
 
   return headers;
 };
+
+const createDedupe = (ongoing, url) => ({
+  save: (prom) => {
+    ongoing.set(url, prom);
+    return prom;
+  },
+  get: () => ongoing.get(url),
+  clear: () => ongoing.delete(url),
+});
 
 const createFetch = (request, { after, dedupe, error, output }) => {
   return fetch(request.url, request).then(async (res) => {
@@ -70,102 +85,122 @@ const createFetch = (request, { after, dedupe, error, output }) => {
   });
 };
 
-const fch = swear((url, options = {}) => {
-  // Second parameter always has to be an object, even when it defaults
-  if (typeof options !== "object") options = {};
+const create = (defaults = {}) => {
+  // DEDUPLICATION is created on a per-instance basis
+  // To avoid making parallel requests to the same url if one is ongoing
+  const ongoing = new Map();
 
-  // Accept either fch(options) or fch(url, options)
-  options = typeof url === "string" ? { url, ...options } : url;
+  const fch = async (url, options = {}) => {
+    // Second parameter always has to be an object, even when it defaults
+    if (typeof options !== "object") options = {};
 
-  // Absolute URL if possible; Default method; merge the default headers
-  options.url = createUrl(options.url, fch.baseUrl);
-  options.method = (options.method ?? fch.method).toLowerCase();
-  options.headers = createHeaders(options.headers, fch.headers);
+    // Accept either fch(options) or fch(url, options)
+    options = typeof url === "string" ? { url, ...options } : url || {};
 
-  let {
-    dedupe = fch.dedupe,
-    output = fch.output,
+    // Exctract the options
+    let {
+      dedupe = fch.dedupe,
+      output = fch.output,
+      baseURL = fch.baseURL, // DO NOT USE; it's here only for user friendliness
+      baseUrl = baseURL || fch.baseUrl,
 
-    before = fch.before,
-    after = fch.after,
-    error = fch.error,
+      // Extract it since it should not be part of fetch()
+      query = {},
 
-    ...request
-  } = options; // Local option OR global value (including defaults)
+      // Interceptors can also be passed as parameters
+      before = fch.before,
+      after = fch.after,
+      error = fch.error,
 
-  if (request.method !== "get") {
-    dedupe = false;
-  }
-  if (dedupe) {
-    dedupe = {
-      save: (prom) => {
-        ongoing.set(request.url, prom);
-        return prom;
-      },
-      get: () => ongoing.get(request.url),
-      clear: () => ongoing.delete(request.url),
-    };
-  }
+      ...request
+    } = options; // Local option OR global value (including defaults)
 
-  if (!["body", "response"].includes(output)) {
-    const msg = `options.output needs to be either "body" (default) or "response", not "${output}"`;
-    throw new Error(msg);
-  }
+    // Merge it, first the global and then the local
+    query = { ...fch.query, ...query };
+    // Absolute URL if possible; Default method; merge the default headers
+    request.url = createUrl(request.url || "/", query, baseUrl);
+    request.method = (request.method ?? fch.method).toLowerCase();
+    request.headers = createHeaders(request.headers, fch.headers);
 
-  // JSON-encode plain objects
-  if (hasPlainBody(request)) {
-    request.body = JSON.stringify(request.body);
-    request.headers["content-type"] = "application/json; charset=utf-8";
-  }
+    if (request.method !== "get") {
+      dedupe = false;
+    }
+    if (dedupe) {
+      dedupe = createDedupe(ongoing, request.url);
+    }
 
-  // Hijack the requeset and modify it
-  if (before) {
-    request = before(request);
-  }
+    if (!["body", "response"].includes(output)) {
+      const msg = `options.output needs to be either "body" (default) or "response", not "${output}"`;
+      throw new Error(msg);
+    }
 
-  // It should be cached
-  if (dedupe) {
-    // It's already cached! Just return it
-    if (dedupe.get()) return dedupe.get();
+    // JSON-encode plain objects
+    if (hasPlainBody(request)) {
+      request.body = JSON.stringify(request.body);
+      request.headers["content-type"] = "application/json; charset=utf-8";
+    }
 
-    // Otherwise, save it in the cache and return the promise
-    return dedupe.save(createFetch(request, { dedupe, output, error, after }));
-  } else {
-    // PUT, POST, etc should never dedupe and just return the plain request
-    return createFetch(request, { output, error, after });
-  }
-});
+    // Hijack the requeset and modify it
+    if (before) {
+      request = before(request);
+    }
 
-// Default values
-fch.method = "get";
-fch.headers = {};
+    // It should be cached
+    if (dedupe) {
+      // It's already cached! Just return it
+      if (dedupe.get()) return dedupe.get();
 
-// Default options
-fch.dedupe = true;
-fch.output = "body";
+      // Otherwise, save it in the cache and return the promise
+      return dedupe.save(
+        createFetch(request, { dedupe, output, error, after })
+      );
+    } else {
+      // PUT, POST, etc should never dedupe and just return the plain request
+      return createFetch(request, { output, error, after });
+    }
+  };
 
-// Interceptors
-fch.before = (request) => request;
-fch.after = (response) => response;
-fch.error = (error) => Promise.reject(error);
+  // Default values
+  fch.method = defaults.method ?? "get";
+  fch.query = defaults.query ?? {};
+  fch.headers = defaults.headers ?? {};
 
-const request = (url, opts = {}) => fch(url, { ...opts });
-const get = (url, opts = {}) => fch(url, { ...opts });
-const head = (url, opts = {}) => fch(url, { ...opts, method: "head" });
-const post = (url, opts = {}) => fch(url, { ...opts, method: "post" });
-const patch = (url, opts = {}) => fch(url, { ...opts, method: "patch" });
-const put = (url, opts = {}) => fch(url, { ...opts, method: "put" });
-const del = (url, opts = {}) => fch(url, { ...opts, method: "delete" });
+  // Default options
+  fch.dedupe = defaults.dedupe ?? true;
+  fch.output = defaults.output ?? "body";
+  fch.credentials = defaults.credentials ?? "include";
 
-fch.request = request;
-fch.get = get;
-fch.head = head;
-fch.post = post;
-fch.patch = patch;
-fch.put = put;
-fch.del = del;
+  // Interceptors
+  fch.before = defaults.before ?? ((request) => request);
+  fch.after = defaults.after ?? ((response) => response);
+  fch.error = defaults.error ?? ((error) => Promise.reject(error));
 
-fch.swear = swear;
+  const get = (url, opts = {}) => fch(url, { ...opts });
+  const head = (url, opts = {}) => fch(url, { ...opts, method: "head" });
+  const post = (url, opts = {}) => fch(url, { ...opts, method: "post" });
+  const patch = (url, opts = {}) => fch(url, { ...opts, method: "patch" });
+  const put = (url, opts = {}) => fch(url, { ...opts, method: "put" });
+  const del = (url, opts = {}) => fch(url, { ...opts, method: "delete" });
 
-export default fch;
-export { request, get, head, post, patch, put, del, swear };
+  fch.get = get;
+  fch.head = head;
+  fch.post = post;
+  fch.patch = patch;
+  fch.put = put;
+  fch.del = del;
+
+  return fch;
+};
+
+// Need to export it globally with `global`, since if we use export default then
+// we cannot load it in the browser as a normal <script>, and if we load it in
+// the browser as a <script module> then we cannot run a normal script after it
+// since the modules are deferred by default. Basically this is a big mess and
+// I wish I could just do if `(typeof window !== 'undefined') window.fch = fch`,
+// but unfortunately that's not possible now and I need this as a traditionally
+// global definition, and then another file to import it as ESM. UGHHH
+let glob = {};
+if (typeof global !== "undefined") glob = global;
+if (typeof window !== "undefined") glob = window;
+glob.fch = create();
+glob.fch.create = create;

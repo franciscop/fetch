@@ -21,15 +21,16 @@
     "async",
     "ajax"
   ],
-  "main": "fetch.js",
-  "files": [],
+  "main": "./index.js",
+  "browser": "./fetch.js",
+  "files": [
+    "fetch.js"
+  ],
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
-  "dependencies": {
-    "swear": "^1.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "jest": "^28.0.1",
     "jest-fetch-mock": "^3.0.3"

@@ -1,13 +1,25 @@
-import fch from "./fetch.js";
+import fch from "./index.js";
 import mock from "jest-fetch-mock";
 
 mock.enableMocks();
 
-const jsonHeaders = { headers: { "Content-Type": "application/json" } };
+const jsonType = "application/json; charset=utf-8";
+const jsonHeaders = { headers: { "Content-Type": jsonType } };
 
 describe("fetch()", () => {
   beforeEach(() => {
     fetch.resetMocks();
+  });
+
+  it("can create an empty request", async () => {
+    fetch.once("hello");
+    const body = await fch();
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
   });
 
   it("can create a basic request", async () => {
@@ -52,12 +64,6 @@ describe("fetch()", () => {
     expect(fetch.mock.calls[0][0]).toEqual("https://google.com/");
   });
 
-  it("can use the swear interface", async () => {
-    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
-    const hello = await fch("/").secret;
-    expect(hello).toEqual("12345");
-  });
-
   it("can use the baseUrl", async () => {
     fetch.once("hi");
     fch.baseUrl = "https://google.com/";
@@ -68,11 +74,46 @@ describe("fetch()", () => {
     fch.baseUrl = null;
   });
 
+  it("can use the baseURL", async () => {
+    fetch.once("hi");
+    fch.baseURL = "https://google.com/";
+    const body = await fch.get("/hello");
+    expect(body).toBe("hi");
+    expect(fetch.mock.calls[0][0]).toBe("https://google.com/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    fch.baseURL = null;
+  });
+
+  it("can use the baseUrl as an option", async () => {
+    fetch.once("hi");
+    const baseUrl = "https://google.com/";
+    const body = await fch.get("/hello", { baseUrl });
+    expect(body).toBe("hi");
+    expect(fetch.mock.calls[0][0]).toBe("https://google.com/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+  });
+
+  it("can use the baseURL", async () => {
+    fetch.once("hi");
+    const baseURL = "https://google.com/";
+    const body = await fch.get("/hello", { baseURL });
+    expect(body).toBe("hi");
+    expect(fetch.mock.calls[0][0]).toBe("https://google.com/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+  });
+
   it("can use the `fetch.get()` shorthand", async () => {
     fetch.once("my-data");
     const body = await fch.get("/");
     expect(body).toBe("my-data");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
+  });
+
+  it("can use the `fetch.head()` shorthand", async () => {
+    fetch.once("my-data");
+    const body = await fch.head("/");
+    expect(body).toBe("my-data");
+    expect(fetch.mock.calls[0][1].method).toEqual("head");
   });
 
   it("can use the `fetch.patch()` shorthand", async () => {
@@ -137,21 +178,6 @@ describe("fetch()", () => {
     });
   });
 
-  it("will send JSON", async () => {
-    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
-    const res = await fch("/", { method: "POST", body: { a: "b" } });
-
-    expect(res).toEqual({ secret: "12345" });
-    expect(fetch.mock.calls.length).toEqual(1);
-    const [url, opts] = fetch.mock.calls[0];
-    expect(url).toEqual("/");
-    expect(opts).toMatchObject({
-      method: "post",
-      body: '{"a":"b"}',
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
-  });
-
   it("can run in parallel", async () => {
     fetch.once("a").once("b");
     const res = await Promise.all([fch("/a"), fch("/b")]);
@@ -192,91 +218,42 @@ describe("fetch()", () => {
   });
 });
 
-describe("interceptors", () => {
+describe("request body variations", () => {
   beforeEach(() => {
     fetch.resetMocks();
-  });
-  afterEach(() => {
-    fetch.resetMocks();
-    delete fch.before;
-    delete fch.after;
-  });
-
-  it("can create a before interceptor", async () => {
     fetch.once("hello");
-    const body = await fch("/", {
-      before: (req) => {
-        req.url = "/hello";
-        req.method = "put";
-        return req;
-      },
-    });
-
-    expect(body).toEqual("hello");
-    expect(fetch.mock.calls.length).toEqual(1);
-    expect(fetch.mock.calls[0][0]).toEqual("/hello");
-    expect(fetch.mock.calls[0][1].method).toEqual("put");
-    expect(fetch.mock.calls[0][1].headers).toEqual({});
   });
 
-  it("can create a global before interceptor", async () => {
-    fetch.once("hello");
-    fch.before = (req) => {
-      req.url = "/hello";
-      req.method = "put";
-      return req;
-    };
-    const data = await fch("/");
+  it("will send a string as-is", async () => {
+    const res = await fch("/", { method: "POST", body: "abcdef" });
 
-    expect(data).toEqual("hello");
-    expect(fetch.mock.calls.length).toEqual(1);
-    expect(fetch.mock.calls[0][0]).toEqual("/hello");
-    expect(fetch.mock.calls[0][1].method).toEqual("put");
-    expect(fetch.mock.calls[0][1].headers).toEqual({});
-
-    delete fch.before;
+    const { body, headers } = fetch.mock.calls[0][1];
+    expect(body).toBe("abcdef");
+    expect(headers).toEqual({});
   });
 
-  it("can create an after interceptor", async () => {
-    fetch.once("hello", { status: 201, headers: { hello: "world" } });
-    const res = await fch("/", {
-      output: "response",
-      after: (res) => {
-        res.body = "bye";
-        res.status = 200;
-        res.headers.hello = "world";
-        return res;
-      },
-    });
+  it("will send FormData as-is", async () => {
+    const res = await fch("/", { method: "POST", body: new FormData() });
 
-    expect(res.body).toEqual("bye");
-    expect(res.status).toEqual(200);
-    expect(res.statusText).toEqual("Created");
-    expect(res.headers.hello).toEqual("world");
-    expect(fetch.mock.calls.length).toEqual(1);
-    expect(fetch.mock.calls[0][0]).toEqual("/");
-    expect(fetch.mock.calls[0][1].method).toEqual("get");
-    expect(fetch.mock.calls[0][1].headers).toEqual({});
+    const { body, headers } = fetch.mock.calls[0][1];
+    expect(body instanceof FormData).toBe(true);
+    expect(headers).toEqual({});
   });
 
-  it("can create a global after interceptor", async () => {
-    fetch.once("hello", { status: 201, headers: { hello: "world" } });
-    fch.after = (res) => {
-      res.body = "bye";
-      res.status = 200;
-      res.headers.hello = "world";
-      return res;
-    };
-    const res = await fch("/", { output: "response" });
+  it("will send an object as JSON", async () => {
+    const res = await fch("/", { method: "POST", body: { a: "b" } });
 
-    expect(res.body).toEqual("bye");
-    expect(res.status).toEqual(200);
-    expect(res.statusText).toEqual("Created");
-    expect(res.headers.hello).toEqual("world");
-    expect(fetch.mock.calls.length).toEqual(1);
-    expect(fetch.mock.calls[0][0]).toEqual("/");
-    expect(fetch.mock.calls[0][1].method).toEqual("get");
-    expect(fetch.mock.calls[0][1].headers).toEqual({});
+    const { body, headers } = fetch.mock.calls[0][1];
+    expect(body).toBe('{"a":"b"}');
+    expect(headers).toEqual({ "content-type": jsonType });
+  });
+
+  it("will send an array as JSON", async () => {
+    const res = await fch("/", { method: "POST", body: ["a", "b"] });
+
+    const { body, headers } = fetch.mock.calls[0][1];
+    expect(body).toBe('["a","b"]');
+    expect(headers).toEqual({ "content-type": jsonType });
   });
 });
 
@@ -366,5 +343,159 @@ describe("dedupe network calls", () => {
 
     expect(res).toEqual(["a", "b", "a"]);
     expect(fetch.mock.calls.length).toEqual(2);
+  });
+});
+
+describe("query parameters", () => {
+  beforeEach(() => {
+    fetch.resetMocks();
+  });
+
+  it("works with query", async () => {
+    fetch.once("hello");
+    const body = await fch("/", { query: { abc: "def" } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?abc=def");
+  });
+
+  it("works with existing query and new one", async () => {
+    fetch.once("hello");
+    const body = await fch("/?ghi=jkl", { query: { abc: "def" } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?abc=def&ghi=jkl");
+  });
+
+  it("can set a default query for everywhere", async () => {
+    fetch.once("hello");
+    fch.query = { abc: "def" };
+    const body = await fch("/?mno=pqr", { query: { ghi: "jkl" } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?abc=def&ghi=jkl&mno=pqr");
+    fch.query = {};
+  });
+
+  it("query overwriting: url > local", async () => {
+    fetch.once("hello");
+    const body = await fch("/?abc=def", { query: { abc: "hij" } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?abc=def");
+  });
+
+  it("query overwriting: local > global", async () => {
+    fetch.once("hello");
+    fch.query = { abc: "hij" };
+    const body = await fch("/", { query: { abc: "def" } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?abc=def");
+    fch.query = {};
+  });
+
+  it("query overwriting: url > local > global", async () => {
+    fetch.once("hello");
+    fch.query = { abc: "klm" };
+    const body = await fch("/?abc=def", { query: { abc: "hij" } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?abc=def");
+    fch.query = {};
+  });
+});
+
+describe("interceptors", () => {
+  beforeEach(() => {
+    fetch.resetMocks();
+  });
+  afterEach(() => {
+    fetch.resetMocks();
+    delete fch.before;
+    delete fch.after;
+  });
+
+  it("can create a before interceptor", async () => {
+    fetch.once("hello");
+    const body = await fch("/", {
+      before: (req) => {
+        req.url = "/hello";
+        req.method = "put";
+        return req;
+      },
+    });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("put");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it("can create a global before interceptor", async () => {
+    fetch.once("hello");
+    fch.before = (req) => {
+      req.url = "/hello";
+      req.method = "put";
+      return req;
+    };
+    const data = await fch("/");
+
+    expect(data).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("put");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+
+    delete fch.before;
+  });
+
+  it("can create an after interceptor", async () => {
+    fetch.once("hello", { status: 201, headers: { hello: "world" } });
+    const res = await fch("/", {
+      output: "response",
+      after: (res) => {
+        res.body = "bye";
+        res.status = 200;
+        res.headers.hello = "world";
+        return res;
+      },
+    });
+
+    expect(res.body).toEqual("bye");
+    expect(res.status).toEqual(200);
+    expect(res.statusText).toEqual("Created");
+    expect(res.headers.hello).toEqual("world");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
+  });
+
+  it("can create a global after interceptor", async () => {
+    fetch.once("hello", { status: 201, headers: { hello: "world" } });
+    fch.after = (res) => {
+      res.body = "bye";
+      res.status = 200;
+      res.headers.hello = "world";
+      return res;
+    };
+    const res = await fch("/", { output: "response" });
+
+    expect(res.body).toEqual("bye");
+    expect(res.status).toEqual(200);
+    expect(res.statusText).toEqual("Created");
+    expect(res.headers.hello).toEqual("world");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
+    expect(fetch.mock.calls[0][1].headers).toEqual({});
   });
 });

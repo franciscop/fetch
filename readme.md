@@ -1,6 +1,6 @@
 # Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/fetch.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.js)
 
-A library to make API calls easier. Similar to Axios, but tiny size and simpler API:
+A tiny library to make API calls easier. Similar to Axios, but tiny size and simpler API:
 
 ```js
 import api from "fch";
@@ -11,31 +11,31 @@ console.log(mew);
 - Automatically `JSON.stringify()` and `Content-Type: 'application/json'` for objects.
 - Automatically parse server response taking into account the headers.
 - Works the same way in Node.js and the browser.
-- Await/Async Promise interface works as you know and love.
-- Better error handling. `>= 400 and <= 100` will _reject_ the promise with an error instance.
-- Advanced [Promise interface](https://www.npmjs.com/swear) for better scripting.
-- Easily define shared options straight on the root `fetch.baseUrl = "https://...";`.
+- Await/Async Promises. `>= 400 and <= 100` will _reject_ the promise and throw an error.
+- No dependencies; include it with a simple `<script>`
+- Easily define shared options straight on the root `fch.baseUrl = "https://...";`.
 - Interceptors: `before` (the request), `after` (the response) and `error` (it fails).
 - Deduplicates parallel GET requests.
 - Configurable to return either just the body, or the full response.
 
-These are the available options and their defaults:
-
-| Methods                              | Description                           |
-|--------------------------------------|---------------------------------------|
-|`api(url, { method, body, headers })` | Generic fetch-like function           |
-|`api.get(url, { headers })`           | Make GET requests (no body)           |
-|`api.head(url, { headers })`          | Make HEAD requests (no body)          |
-|`api.post(url, { body, headers })`    | Make POST requests                    |
-|`api.patch(url, { body, headers })`   | Make PATCH requests                   |
-|`api.put(url, { body, headers })`     | Make PUT requests                     |
-|`api.del(url, { body, headers })`     | Make DELETE requests                  |
+```js
+// Calls and methods available:
+api(url, { method, body, headers, ...options })
+api.get(url, { headers, ...options })
+api.head(url, { headers, ...options })
+api.post(url, { body, headers, ...options })
+api.patch(url, { body, headers, ...options })
+api.put(url, { body, headers, ...options })
+api.del(url, { body, headers, ...options })
+fch.create({ url, body, headers, ...options})
+```
 
 |Options/variables |Default        |Description                                |
 |------------------|---------------|-------------------------------------------|
 |`url`             |`null`         |The path or full url for the request       |
 |`api.baseUrl`     |`null`         |The shared base of the API                 |
 |`api.method`      |`"get"`        |Default method to use for the call         |
+|`api.query`       |`{}`           |Add query parameters to the URL            |
 |`api.headers`     |`{}`           |Shared headers across all requests         |
 |`api.dedupe`      |`true`         |Reuse GET requests made concurrently       |
 |`api.output`      |`"body"`       |The return value of the API call           |
@@ -54,14 +54,24 @@ npm install fch
 Then import it to be able to use it in your code:
 
 ```js
-import api from 'fch';
-const body = await api.get('/');
+import fch from 'fch';
+const body = await fch.get('/');
+```
+
+On the browser you can add it with a script and it will be available as `fch`:
+
+```html
+<!-- Import it as usual -->
+<script src="https://cdn.jsdelivr.net/npm/fch"></script>
+<script>
+  fch('/hello');
+</script>
 ```
 
 ## Options
 
 ```js
-import api, { get, post, put, ... } from 'fch';
+import api from 'fch';
 
 // General options with their defaults; most of these are also parameters:
 api.baseUrl = null;  // Set an API endpoint
@@ -84,12 +94,6 @@ api(url, { method, body, headers, ... });
 api.get(url, { headers, ... });
 api.post(url, { body, headers, ... });
 api.put(url, { body, headers, ... });
-// ...
-
-// Just import/use the method you need
-get(url, { headers, ... });
-post(url, { body, headers, ... });
-put(url, { body, headers, ... });
 // ...
 ```
 
@@ -121,7 +125,7 @@ api.get('/hello');
 
 ### Body
 
-The `body` can be a string, a FormData instance or a plain object. If it's an object, it'll be stringified and the header `application/json` will be added. Otherwise it'll be sent as plain text:
+The `body` can be a string, a plain object|array or a FormData instance. If it's an object, it'll be stringified and the header `application/json` will be added. Otherwise it'll be sent as plain text:
 
 ```js
 import api from 'api';
@@ -251,19 +255,6 @@ fch.error = async err => {
 ```
 
 
-
-### Advanced promise interface
-
-This library uses [the `swear` promise interface](https://www.npmjs.com/swear), which allows you to query operations seamlessly on top of your promise:
-
-```js
-import api from "fch";
-
-// You can keep performing actions like it was sync
-const firstFriendName = await api.get("/friends")[0].name;
-console.log(firstFriendName);
-```
-
 ### Define shared options
 
 You can also define values straight away:
@@ -376,3 +367,54 @@ import fch from 'fch';
 
 const me = await fch('/users/me', { headers: { Authorization: 'bearer abc' } });
 ```
+
+
+### Create an instance
+
+You can create an instance with its own defaults and global options easily. It's common when writing an API that you want to encapsulate away:
+
+```js
+import fch from 'fch';
+
+const api = fch.create({
+  baseUrl: 'https://api.filemon.io/',
+  ...
+});
+
+api.get('/hello');   // Gets https://api.filemon.io/hello
+fch.get('/hello');   // Gets http://localhost:3000/hello (or wherever you are)
+```
+
+Note: for server-side (Node.js) usage, you always want to set `baseUrl`.
+
+### What are the differences in Node.js vs Browser?
+
+First, we use the native Node.js' fetch() and the browser's native fetch(), so any difference between those also applies to this library. For example, if you were to call `"/"` in the browser it'd refer to the current URL, while in Node.js it'd fail since you need to specify the full URL. Some other places where you might find differences: CORS, cache, etc.
+
+In the library itself there's nothing different between the browser and Node.js, but it might be interesting to note that (if/when implemented) things like cache, etc. in Node.js are normally long-lived and shared, while in a browser request it'd bound to the request itself.
+
+
+### What are the differences with Axios?
+
+The main difference is that things are simplified with fch:
+
+```js
+// Modify headers
+axios.defaults.headers.Authorization = '...';
+fch.headers.Authorization = '...';
+
+// Set a base URL
+axios.defaults.baseURL = '...';
+fch.baseUrl = '...';
+
+// Add an interceptor
+axios.interceptors.request.use(fn);
+fch.before = fn;
+```
+
+API size is also strikingly different, with **7.8kb** for Axios and **1.9kb** for fch.
+
+As disadvantages, I can think of two major ones for `fch`:
+
+- Requires Node.js 18+, which is the version that includes `fetch()` by default.
+- Does not support some more advanced options,
