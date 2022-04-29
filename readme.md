@@ -4,7 +4,8 @@ A tiny library to make API calls easier. Similar to Axios, but tiny size and sim
 
 ```js
 import api from "fch";
-const mew = await api.get("https://pokeapi.co/pokemon/150");
+api.baseUrl = "https://pokeapi.co/";
+const mew = await api.get("/pokemon/150");
 console.log(mew);
 ```
 
