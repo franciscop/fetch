@@ -1,6 +1,6 @@
 {
   "name": "fch",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Fetch interface with better promises, deduplication, defaults, etc.",
   "homepage": "https://github.com/franciscop/fetch",
   "repository": "https://github.com/franciscop/fetch.git",
@@ -25,7 +25,8 @@
   "main": "./fetch.js",
   "browser": "./index.js",
   "files": [
-    "index.js", "fetch.js"
+    "index.js",
+    "fetch.js"
   ],
   "type": "module",
   "engines": {
