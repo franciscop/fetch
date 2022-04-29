@@ -118,7 +118,7 @@ const create = (defaults = {}) => {
     // Merge it, first the global and then the local
     query = { ...fch.query, ...query };
     // Absolute URL if possible; Default method; merge the default headers
-    request.url = createUrl(request.url || "/", query, baseUrl);
+    request.url = createUrl(request.url ?? fch.url, query, baseUrl);
     request.method = (request.method ?? fch.method).toLowerCase();
     request.headers = createHeaders(request.headers, fch.headers);
 
@@ -161,6 +161,7 @@ const create = (defaults = {}) => {
   };
 
   // Default values
+  fch.url = defaults.url ?? "/";
   fch.method = defaults.method ?? "get";
   fch.query = defaults.query ?? {};
   fch.headers = defaults.headers ?? {};

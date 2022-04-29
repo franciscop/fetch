@@ -72,17 +72,20 @@ On the browser you can add it with a script and it will be available as `fch`:
 
 ## Options
 
+These are all available options and their defaults:
+
 ```js
 import api from 'fch';
 
 // General options with their defaults; all of these are also parameters:
+api.url = '/';       // Relative or absolute url where the request is sent
 api.baseUrl = null;  // Set an API base URL reused all across requests
 api.method = 'get';  // Default method to use for api()
-api.query = {};      // Is merged with the query parameters passed manually
-api.headers = {};    // Is merged with the headers on a per-request basis
+api.query = {};      // Merged with the query parameters passed manually
+api.headers = {};    // Merged with the headers on a per-request basis
 
 // Control simple variables
-api.dedupe = true;   // Avoid parallel GET requests to the same path
+api.dedupe = true;   // Avoid sending concurrent GET requests to the same path
 api.output = 'body'; // Return the body; use 'response' for the full response
 
 // Interceptors
@@ -90,6 +93,8 @@ api.before = req => req;
 api.after = res => res;
 api.error = err => Promise.reject(err);
 ```
+
+They can all be defined globally as shown above, passed manually as the options argument, or be used when [creating a new instance](#create-an-instance).
 
 ### Method
 
