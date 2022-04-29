@@ -1,4 +1,4 @@
-# Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/index.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/index.js)
+# Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/fetch.min.js.svg?compression=gzip)](https://github.com/franciscop/fetch/blob/master/fetch.min.js)
 
 A tiny library to make API calls easier. Similar to Axios, but tiny size and simpler API:
 
