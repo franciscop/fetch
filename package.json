@@ -9,7 +9,7 @@
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
   "scripts": {
-    "build": "terser --compress --mangle -- ./fetch.js | sed 's/export default fch;/window.fch = fch;/g' > ./index.js",
+    "build": "terser --compress --mangle -- ./fetch.js | sed 's/export default fch;/window.fch=fch;/g' > ./index.js",
     "start": "npm run watch # Start ~= Start dev",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles",
     "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles"
