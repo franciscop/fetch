@@ -78,15 +78,15 @@ These are all available options and their defaults:
 import api from 'fch';
 
 // General options with their defaults; all of these are also parameters:
+api.method = 'get';  // Default method to use for api()
 api.url = '/';       // Relative or absolute url where the request is sent
 api.baseUrl = null;  // Set an API base URL reused all across requests
-api.method = 'get';  // Default method to use for api()
 api.query = {};      // Merged with the query parameters passed manually
 api.headers = {};    // Merged with the headers on a per-request basis
 
 // Control simple variables
-api.dedupe = true;   // Avoid sending concurrent GET requests to the same path
 api.output = 'body'; // Return the body; use 'response' for the full response
+api.dedupe = true;   // Avoid sending concurrent GET requests to the same path
 
 // Interceptors
 api.before = req => req;
