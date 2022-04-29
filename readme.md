@@ -27,21 +27,21 @@ api.post(url, { body, headers, ...options })
 api.patch(url, { body, headers, ...options })
 api.put(url, { body, headers, ...options })
 api.del(url, { body, headers, ...options })
-fch.create({ url, body, headers, ...options})
+api.create({ url, body, headers, ...options})
 ```
 
-|Options/variables |Default        |Description                                |
-|------------------|---------------|-------------------------------------------|
-|`url`             |`null`         |The path or full url for the request       |
-|`api.baseUrl`     |`null`         |The shared base of the API                 |
-|`api.method`      |`"get"`        |Default method to use for the call         |
-|`api.query`       |`{}`           |Add query parameters to the URL            |
-|`api.headers`     |`{}`           |Shared headers across all requests         |
-|`api.dedupe`      |`true`         |Reuse GET requests made concurrently       |
-|`api.output`      |`"body"`       |The return value of the API call           |
-|`api.before`      |`req => req`   |Process the request before sending it      |
-|`api.after`       |`res => res`   |Process the response before receiving it   |
-|`api.error`       |`err => reject(err)` |Process errors before returning them |
+| Options   | Default            | Description                                 |
+|-----------|--------------------|---------------------------------------------|
+| `url`     | `null`             | The path or full url for the request        |
+| `baseUrl` | `null`             | The shared base of the API                  |
+| `method`  | `"get"`            | Default method to use for the call          |
+| `query`   | `{}`               | Add query parameters to the URL             |
+| `headers` | `{}`               | Shared headers across all requests          |
+| `dedupe`  | `true`             | Reuse GET requests made concurrently        |
+| `output`  | `"body"`           | The return value of the API call            |
+| `before`  | `req => req`       | Process the request before sending it       |
+| `after`   | `res => res`       | Process the response before returning it    |
+| `error`   | `err => throw err` | Process errors before returning them        |
 
 ## Getting Started
 
@@ -73,9 +73,10 @@ On the browser you can add it with a script and it will be available as `fch`:
 ```js
 import api from 'fch';
 
-// General options with their defaults; most of these are also parameters:
-api.baseUrl = null;  // Set an API endpoint
+// General options with their defaults; all of these are also parameters:
+api.baseUrl = null;  // Set an API base URL reused all across requests
 api.method = 'get';  // Default method to use for api()
+api.query = {};      // Is merged with the query parameters passed manually
 api.headers = {};    // Is merged with the headers on a per-request basis
 
 // Control simple variables
@@ -123,9 +124,11 @@ api.get('/hello');
 // Called https//api.filemon.io/hello
 ```
 
+> Note: with Node.js you need to either set an absolute baseUrl or make the URL absolute
+
 ### Body
 
-The `body` can be a string, a plain object|array or a FormData instance. If it's an object, it'll be stringified and the header `application/json` will be added. Otherwise it'll be sent as plain text:
+The `body` can be a string, a plain object|array or a FormData instance. If it's an array or object, it'll be stringified and the header `application/json` will be added. Otherwise it'll be sent as plain text:
 
 ```js
 import api from 'api';
@@ -150,12 +153,27 @@ You can define headers globally, in which case they'll be added to every request
 
 ```js
 import api from 'fch';
-api.headers.abc = 'def';
 
-api.get('/helle', { headers: { ghi: 'jkl' } });
+// Globally, so they are reused across all requests
+api.headers.a = 'b';
+
+// With an interceptor, in case you need dynamic headers per-request
+api.before = req => {
+  req.headers.c = 'd';
+  return req;
+};
+
+// Set them for this single request:
+api.get('/hello', { headers: { e: 'f' } });
 // Total headers on the request:
-// { abc: 'def', ghi: 'jkl' }
+// { a: 'b', c: 'd', e: 'f' }
 ```
+
+When to use each?
+
+- If you need headers shared across all requests, like an API key, then the global one is the best place.
+- When you need to extract them dynamically from somewhere it's better to use the .before() interceptor. An example would be the user Authorization token.
+- When it changes on each request, it's not consistent or it's an one-off, use the option argument.
 
 
 ### Output
