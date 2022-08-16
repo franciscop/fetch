@@ -165,6 +165,7 @@ const create = (defaults = {}) => {
   fch.method = defaults.method ?? "get";
   fch.query = defaults.query ?? {};
   fch.headers = defaults.headers ?? {};
+  fch.baseUrl = defaults.baseUrl ?? defaults.baseURL ?? null;
 
   // Default options
   fch.dedupe = defaults.dedupe ?? true;
