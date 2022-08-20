@@ -69,7 +69,8 @@ const createFetch = (request, { after, dedupe, error, output }) => {
     }
 
     // Automatically parse the response
-    const isJson = res.headers.get("content-type").includes("application/json");
+    const type = res.headers.get("content-type");
+    const isJson = type && type.includes("application/json");
     response.body = await (isJson ? res.json() : res.text());
 
     // Hijack the response and modify it
