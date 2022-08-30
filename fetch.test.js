@@ -4,7 +4,7 @@ import mock from "jest-fetch-mock";
 mock.enableMocks();
 
 const delay = (num) => new Promise((done) => setTimeout(done, num));
-const jsonType = "application/json; charset=utf-8";
+const jsonType = "application/json";
 const jsonHeaders = { headers: { "Content-Type": jsonType } };
 
 describe("fetch()", () => {
@@ -57,7 +57,32 @@ describe("fetch()", () => {
     expect(fetch.mock.calls.length).toEqual(1);
   });
 
-  it("can cancel an ongoin request", async () => {
+  it("can parse it as plain text", async () => {
+    fetch.once("hiii");
+    const body = await fch("/", { output: "text" });
+
+    expect(body).toEqual("hiii");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("can parse it as json", async () => {
+    fetch.once(JSON.stringify({ a: "b" }));
+    const body = await fch("/", { output: "json" });
+
+    expect(body).toEqual({ a: "b" });
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("can parse it as blob", async () => {
+    fetch.once("hello");
+    const body = await fch("/", { output: "blob" });
+
+    // expect(body).toBeInstanceOf(Blob);
+    expect(await body.text()).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("can cancel an ongoing request", async () => {
     fetch.once(async () => {
       await delay(1000); // One full second!
       return "hello";
@@ -160,9 +185,9 @@ describe("fetch()", () => {
     expect(fetch.mock.calls[0][1].method).toEqual("post");
   });
 
-  it("can use the `fetch.del()` shorthand", async () => {
+  it("can use the `fetch.delete()` shorthand", async () => {
     fetch.once("my-data");
-    expect(await fch.del("/")).toBe("my-data");
+    expect(await fch.delete("/")).toBe("my-data");
     expect(fetch.mock.calls[0][1].method).toEqual("delete");
   });
 
@@ -189,7 +214,7 @@ describe("fetch()", () => {
     fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
     const res = await fch("/", {
       method: "POST",
-      body: { a: "b" },
+      body: JSON.stringify({ a: "b" }),
       headers: { "Content-Type": "xxx" },
     });
 
@@ -199,7 +224,7 @@ describe("fetch()", () => {
     expect(url).toEqual("/");
     expect(opts).toMatchObject({
       method: "post",
-      body: { a: "b" },
+      body: JSON.stringify({ a: "b" }),
       headers: { "content-type": "xxx" },
     });
   });
@@ -232,7 +257,7 @@ describe("fetch()", () => {
   it("throws with the wrong 'output' option", async () => {
     fetch.once("hello");
     await expect(fch("/", { output: "abc" })).rejects.toMatchObject({
-      message: `options.output needs to be either "body" (default) or "response", not "abc"`,
+      message: `Invalid option output="abc"`,
     });
   });
 
@@ -445,8 +470,8 @@ describe("interceptors", () => {
   });
   afterEach(() => {
     fetch.resetMocks();
-    delete fch.before;
-    delete fch.after;
+    fch.before = (req) => req;
+    fch.after = (res) => res;
   });
 
   it("can create a before interceptor", async () => {
