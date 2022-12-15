@@ -8,8 +8,7 @@ jobs:
 
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-        node-version: [18.x]
+        node-version: [14.x, 16.x, 18.x]
 
     steps:
       - uses: actions/checkout@v1
@@ -17,7 +16,9 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
-      - name: Installing
+      - name: install dependencies
         run: npm install
-      - name: Testing
+      - name: npm test
         run: npm test
+        env:
+          CI: true

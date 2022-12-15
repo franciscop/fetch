@@ -32,6 +32,7 @@ api.head(url, { headers, ...options });
 api.post(url, { body, headers, ...options });
 api.patch(url, { body, headers, ...options });
 api.put(url, { body, headers, ...options });
+api.del(url, { body, headers, ...options });
 api.delete(url, { body, headers, ...options });
 
 api.create({ url, body, headers, ...options });
@@ -256,6 +257,21 @@ When to use each?
 
 ### Output
 
+The default output manipulation is to expect either plan `TEXT` as `plain/text` or `JSON` as `application/json` from the `Content-Type`. If your API works with these (the vast majority of APIs do) then you should be fine out of the box!
+
+```js
+const cats = await api.get("/cats");
+console.log(cats); // [{ id: 1, name: 'Whiskers', ... }, ...]
+```
+
+For more expressive control, you can use the **`output` option** (either as a default when [creating an instance](#create-an-instance) or with each call), or using a method:
+
+```js
+const api = fch.create({ output: "json" }); // JSON by default
+const streamImg = await api.get("/cats/123/image", { output: "stream" }); // Stream the image
+const streamImg2 = await api.get("/cats/123/image").stream(); // Shortcut for the one above
+```
+
 This controls whether the call returns just the body (default), or the whole response. It can be controlled globally or on a per-request basis:
 
 ```js
@@ -276,16 +292,27 @@ const blob = await api.get("/data", { output: "blob" });
 There are few options that can be specified:
 
 - `output: "body"` (default): returns the body, parsed as JSON or plain TEXT depending on the headers.
-- `output: "response"`: return the full response with the properties `body`, `headers`, `status`, etc. The body will be parsed as JSON or plain TEXT depending on the headers. If you want the raw `response`, use `raw` or `clone` instead (see below in "raw" or "METHODS").
+- `output: "response"`: return the full response with the properties `body`, `headers`, `status`. The body will be parsed as JSON or plain TEXT depending on the headers. If you want the raw `response`, use `raw` or `clone` instead (see below in "raw" or "clone").
 - `output: "stream"`: return a [web ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream) of the body as the result of the promise.
-- Any of [the valid methods](https://developer.mozilla.org/en-US/docs/Web/API/Response#methods):
-  - `output: "arrayBuffer"`: returns an arrayBuffer of the response body.
-  - `output: "blob"`: returns an arrayBuffer of the response body.
-  - `output: "clone"`: returns the raw Response, with the raw body. See also `raw` below.
-  - `output: formData`: returns an instance of FormData with all the parsed data.
-  - `output: json`: attempts to parse the response as JSON.
-  - `output: text`: puts the response body as plain text.
-- `output: "raw"`: an alias for `clone`, returning the raw response (after passing through `after`).
+- `output: "arrayBuffer"`\*: returns an arrayBuffer of the response body.
+- `output: "blob"`\*: returns an arrayBuffer of the response body.
+- `output: "clone"`\*: returns the raw Response, with the raw body. See also `raw` below.
+- `output: "formData"`\* (might be unavailable): returns an instance of FormData with all the parsed data.
+- `output: "json"`\*: attempts to parse the response as JSON.
+- `output: "text"`\*: puts the response body as plain text.
+- `output: "raw"`\*: an alias for `clone`, returning the raw response (after passing through `after`).
+
+\* Standard [MDN methods](https://developer.mozilla.org/en-US/docs/Web/API/Response#methods)
+
+The `output` values can all be used as a method as well. So all of these are equivalent:
+
+```js
+const text = await api.get("/cats", { output: "text" });
+const text = await api.get("/cats").text();
+
+const raw = await api.get("/cats", { output: "raw" });
+const raw = await api.get("/cats").raw();
+```
 
 For example, return the raw body as a `ReadableStream` with the option `stream`:
 
@@ -341,7 +368,7 @@ it("can opt out locally", async () => {
 You can also easily add the interceptors `before`, `after` and `error`:
 
 - `before`: Called when the request is fully formed, but before actually launching it.
-- `before`: Called just after the response is created and if there was no error, but before parsing anything else.
+- `after`: Called just after the response is created and if there was no error, but before parsing anything else.
 - `error`: When the response is not okay, if possible it'll include the `response` object.
 
 > Note: interceptors are never deduped/cached and always execute once per call, even if the main async fetch() has been deduped.

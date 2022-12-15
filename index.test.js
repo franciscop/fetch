@@ -1,4 +1,4 @@
-import fch from "./fetch.js";
+import fch from "./index.js";
 import mock from "jest-fetch-mock";
 
 mock.enableMocks();
@@ -6,6 +6,7 @@ mock.enableMocks();
 const delay = (num) => new Promise((done) => setTimeout(done, num));
 const jsonType = "application/json";
 const jsonHeaders = { headers: { "Content-Type": jsonType } };
+const textHeaders = { headers: { "Content-Type": "text/plain" } };
 
 describe("fetch()", () => {
   beforeEach(() => {
@@ -57,29 +58,22 @@ describe("fetch()", () => {
     expect(fetch.mock.calls.length).toEqual(1);
   });
 
-  it("can parse it as plain text", async () => {
-    fetch.once("hiii");
-    const body = await fch("/", { output: "text" });
+  it("works with TEXT by default", async () => {
+    fetch.once("12345", textHeaders);
+    const body = await fch("https://google.com/");
 
-    expect(body).toEqual("hiii");
+    expect(body).toEqual("12345");
     expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("https://google.com/");
   });
 
-  it("can parse it as json", async () => {
-    fetch.once(JSON.stringify({ a: "b" }));
-    const body = await fch("/", { output: "json" });
+  it("works with JSON by default", async () => {
+    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
+    const body = await fch("https://google.com/");
 
-    expect(body).toEqual({ a: "b" });
+    expect(body).toEqual({ secret: "12345" });
     expect(fetch.mock.calls.length).toEqual(1);
-  });
-
-  it("can parse it as blob", async () => {
-    fetch.once("hello");
-    const body = await fch("/", { output: "blob" });
-
-    // expect(body).toBeInstanceOf(Blob);
-    expect(await body.text()).toEqual("hello");
-    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("https://google.com/");
   });
 
   it("can cancel an ongoing request", async () => {
@@ -104,15 +98,6 @@ describe("fetch()", () => {
     } catch (error) {
       expect(error.message).toEqual("The operation was aborted. ");
     }
-  });
-
-  it("works with JSON", async () => {
-    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
-    const body = await fch("https://google.com/");
-
-    expect(body).toEqual({ secret: "12345" });
-    expect(fetch.mock.calls.length).toEqual(1);
-    expect(fetch.mock.calls[0][0]).toEqual("https://google.com/");
   });
 
   it("can use the baseUrl", async () => {
@@ -266,6 +251,173 @@ describe("fetch()", () => {
     await expect(fch("/error")).rejects.toMatchObject({
       message: "fake error message",
     });
+  });
+});
+
+describe("output option", () => {
+  beforeEach(() => {
+    fetch.resetMocks();
+    fch.dedupe = false;
+  });
+
+  it("output=body can parse TEXT", async () => {
+    fetch.once("12345", textHeaders);
+    const body = await fch("/", { output: "body" });
+
+    expect(body).toEqual("12345");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=body can parse JSON", async () => {
+    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
+    const body = await fch("/", { output: "body" });
+
+    expect(body).toEqual({ secret: "12345" });
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=text can parse plain text", async () => {
+    fetch.once("hiii");
+    const body = await fch("/", { output: "text" });
+
+    expect(body).toEqual("hiii");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=json can parse plain json", async () => {
+    fetch.once(JSON.stringify({ a: "b" }));
+    const body = await fch("/", { output: "json" });
+
+    expect(body).toEqual({ a: "b" });
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=blob can parse blobs", async () => {
+    fetch.once("hello");
+    const body = await fch("/", { output: "blob" });
+
+    // expect(body).toBeInstanceOf(Blob);
+    expect(await body.text()).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=arrayBuffer returns an arrayBuffer", async () => {
+    fetch.once(new ArrayBuffer(8));
+    const body = await fch("/", { output: "arrayBuffer" });
+    expect(body instanceof ArrayBuffer).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it.skip("output=formData returns a FormData instance", async () => {
+    fetch.once(new FormData());
+    const body = await fch("/", { output: "formData" });
+    expect(body instanceof FormData).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=response returns the processed response+body", async () => {
+    fetch.once("hello");
+    const res = await fch("/").response();
+    expect(res.body).toBe("hello");
+    expect(res.status).toBe(200);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=raw returns the raw response+body", async () => {
+    fetch.once(new Response("hello"));
+    const res = await fch("/", { output: "raw" });
+    expect(res.body instanceof Buffer).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("output=clone returns the raw response+body", async () => {
+    fetch.once(new Response("hello"));
+    const res = await fch("/", { output: "clone" });
+    expect(res.body instanceof Buffer).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+});
+
+describe("output methods", () => {
+  beforeEach(() => {
+    fetch.resetMocks();
+    fch.dedupe = false;
+  });
+
+  it(".body() can parse JSON", async () => {
+    fetch.once(JSON.stringify({ secret: "12345" }), jsonHeaders);
+    const body = await fch("/").body();
+
+    expect(body).toEqual({ secret: "12345" });
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".body() can parse plain text", async () => {
+    fetch.once("hiii", textHeaders);
+    const body = await fch("/").text();
+
+    expect(body).toEqual("hiii");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".text() can parse plain text", async () => {
+    fetch.once("hiii");
+    const body = await fch("/").text();
+
+    expect(body).toEqual("hiii");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".json() can parse JSON", async () => {
+    fetch.once(JSON.stringify({ a: "b" }));
+    const body = await fch("/").json();
+
+    expect(body).toEqual({ a: "b" });
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".blob() can parse blobs", async () => {
+    fetch.once("hello");
+    const body = await fch("/").blob();
+
+    expect(await body.text()).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".arrayBuffer() returns an arrayBuffer", async () => {
+    fetch.once(new ArrayBuffer(8));
+    const body = await fch("/").arrayBuffer();
+    expect(body instanceof ArrayBuffer).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it.skip(".formData() returns a FormData instance", async () => {
+    fetch.once(new FormData());
+    const body = await fch("/").formData();
+    expect(body instanceof FormData).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".response() returns the processed response+body", async () => {
+    fetch.once("hello");
+    const res = await fch("/").response();
+    expect(res.body).toBe("hello");
+    expect(res.status).toBe(200);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".raw() returns the raw response+body", async () => {
+    fetch.once(new Response("hello"));
+    const res = await fch("/").raw();
+    expect(res.body instanceof Buffer).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it(".clone() returns the raw response+body", async () => {
+    fetch.once(new Response("hello"));
+    const res = await fch("/").clone();
+    expect(res.body instanceof Buffer).toBe(true);
+    expect(fetch.mock.calls.length).toEqual(1);
   });
 });
 

@@ -9,8 +9,8 @@
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
   "scripts": {
-    "build": "terser --compress --mangle --toplevel -o ./fetch.min.js -- ./fetch.js",
-    "size": "echo $(gzip -c fetch.min.js | wc -c) bytes",
+    "build": "rollup -c",
+    "size": "echo $(gzip -c index.min.js | wc -c) bytes",
     "start": "npm run watch # Start ~= Start dev",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles",
     "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles"
@@ -23,21 +23,35 @@
     "async",
     "ajax"
   ],
-  "main": "./fetch.min.js",
-  "files": [
-    "fetch.min.js"
-  ],
+  "main": "./index.min.js",
+  "files": [],
   "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "jest": "^28.0.1",
+    "@babel/core": "^7.15.0",
+    "@babel/preset-env": "^7.15.0",
+    "@babel/preset-react": "^7.14.5",
+    "babel-loader": "^8.2.2",
+    "babel-polyfill": "^6.26.0",
+    "jest": "^28.1.0",
+    "jest-environment-jsdom": "^28.1.0",
     "jest-fetch-mock": "^3.0.3",
-    "terser": "^5.13.1"
+    "rollup": "^1.32.1",
+    "rollup-plugin-babel": "^4.4.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-terser": "^5.2.0",
+    "swear": "^1.1.2"
   },
   "jest": {
     "testEnvironment": "jest-environment-node",
     "transform": {}
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env",
+      "@babel/preset-react"
+    ]
   }
 }
