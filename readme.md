@@ -257,7 +257,7 @@ When to use each?
 
 ### Output
 
-The default output manipulation is to expect either plan `TEXT` as `plain/text` or `JSON` as `application/json` from the `Content-Type`. If your API works with these (the vast majority of APIs do) then you should be fine out of the box!
+The default output manipulation is to expect either plain `TEXT` as `plain/text` or `JSON` as `application/json` from the `Content-Type`. If your API works with these (the vast majority of APIs do) then you should be fine out of the box!
 
 ```js
 const cats = await api.get("/cats");
