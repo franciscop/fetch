@@ -4,7 +4,7 @@ import swear from "swear";
 // properly JSON.stringify() + adding the proper ContentType
 const hasObjectBody = (body) => {
   if (!body) return false;
-  if (body.pipeTo) return false;
+  if (typeof (body.pipe || body.pipeTo) === "function") return false;
   if (body instanceof FormData) return false;
   return typeof body === "object" || Array.isArray(body);
 };
