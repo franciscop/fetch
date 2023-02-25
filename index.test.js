@@ -12,6 +12,8 @@ describe("fetch()", () => {
   beforeEach(() => {
     fetch.resetMocks();
     fch.dedupe = false;
+    fch.baseUrl = null;
+    fch.baseURL = null;
   });
 
   it("can create an empty request", async () => {
@@ -107,7 +109,6 @@ describe("fetch()", () => {
     expect(body).toBe("hi");
     expect(fetch.mock.calls[0][0]).toBe("https://google.com/hello");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
-    fch.baseUrl = null;
   });
 
   it("can use the baseURL", async () => {
@@ -117,7 +118,15 @@ describe("fetch()", () => {
     expect(body).toBe("hi");
     expect(fetch.mock.calls[0][0]).toBe("https://google.com/hello");
     expect(fetch.mock.calls[0][1].method).toEqual("get");
-    fch.baseURL = null;
+  });
+
+  it("can use the baseURL with a path", async () => {
+    fetch.once("hi");
+    fch.baseURL = "https://google.com/hi/";
+    const body = await fch.get("/hello");
+    expect(body).toBe("hi");
+    expect(fetch.mock.calls[0][0]).toBe("https://google.com/hi/hello");
+    expect(fetch.mock.calls[0][1].method).toEqual("get");
   });
 
   it("can use the baseUrl as an option", async () => {
@@ -571,6 +580,15 @@ describe("query parameters", () => {
     expect(body).toEqual("hello");
     expect(fetch.mock.calls.length).toEqual(1);
     expect(fetch.mock.calls[0][0]).toEqual("/?abc=def&ghi=jkl");
+  });
+
+  it("ignores undefined", async () => {
+    fetch.once("hello");
+    const body = await fch("/?ghi=jkl", { query: { abc: undefined } });
+
+    expect(body).toEqual("hello");
+    expect(fetch.mock.calls.length).toEqual(1);
+    expect(fetch.mock.calls[0][0]).toEqual("/?ghi=jkl");
   });
 
   it("can set a default query for everywhere", async () => {

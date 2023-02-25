@@ -6,20 +6,30 @@ const hasObjectBody = (body) => {
   return typeof body === "object" && !(body instanceof FormData) && !body.pipe;
 };
 
+const noUndefined = (obj) => {
+  if (typeof obj !== "object") return obj;
+  for (let key in obj) {
+    if (obj[key] === undefined) delete obj[key];
+  }
+  return obj;
+};
+
 const createUrl = (url, query, base) => {
   let [path, urlQuery = {}] = url.split("?");
 
   // Merge global params with passed params with url params
-  const entries = new URLSearchParams({
-    ...Object.fromEntries(new URLSearchParams(query)),
-    ...Object.fromEntries(new URLSearchParams(urlQuery)),
-  }).toString();
+  const entries = new URLSearchParams(
+    Object.fromEntries([
+      ...new URLSearchParams(noUndefined(query)),
+      ...new URLSearchParams(noUndefined(urlQuery)),
+    ])
+  ).toString();
   if (entries) {
     path = path + "?" + entries;
   }
 
   if (!base) return path;
-  const fullUrl = new URL(path, base);
+  const fullUrl = new URL(path.replace(/^\//, ""), base);
   return fullUrl.href;
 };
 
@@ -164,7 +174,7 @@ const create = (defaults = {}) => {
 
     // JSON-encode plain objects
     if (hasObjectBody(request.body)) {
-      request.body = JSON.stringify(request.body);
+      request.body = JSON.stringify(noUndefined(request.body));
       // Note: already defaults to utf-8
       request.headers["content-type"] = "application/json";
     }
