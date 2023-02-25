@@ -3,7 +3,10 @@ import swear from "swear";
 // Check if the body is an object/array, and if so return true so that it can be
 // properly JSON.stringify() + adding the proper ContentType
 const hasObjectBody = (body) => {
-  return typeof body === "object" && !(body instanceof FormData) && !body.pipe;
+  if (!body) return false;
+  if (body.pipeTo) return false;
+  if (body instanceof FormData) return false;
+  return typeof body === "object" || Array.isArray(body);
 };
 
 const noUndefined = (obj) => {
@@ -13,6 +16,15 @@ const noUndefined = (obj) => {
   }
   return obj;
 };
+
+class ResponseError extends Error {
+  constructor(response) {
+    const message = "Error " + response.status;
+    super(message);
+    this.response = response;
+    this.message = message;
+  }
+}
 
 const createUrl = (url, query, base) => {
   let [path, urlQuery = {}] = url.split("?");
@@ -80,9 +92,7 @@ const parseResponse = async (res, error) => {
 
   // Oops, throw it
   if (!res.ok) {
-    const err = new Error(res.statusText);
-    err.response = response;
-    throw error(err);
+    throw new ResponseError(res);
   }
 
   response.body = await getBody(res);
@@ -96,6 +106,7 @@ const createFetch = (request, { after, cache, error, output }) => {
     text: () => ref.res.text(),
     json: () => ref.res.json(),
     blob: () => ref.res.blob(),
+    stream: () => ref.res.body,
     arrayBuffer: () => ref.res.arrayBuffer(),
     formData: () => ref.res.formData(),
     body: () => getBody(ref.res),
@@ -110,7 +121,9 @@ const createFetch = (request, { after, cache, error, output }) => {
       if (cache) cache.clear();
 
       // In this case, do not process anything else just return the ReadableStream
-      if (res.ok && output === "stream") return res.body;
+      if (res.ok && output === "stream") {
+        return res.body;
+      }
 
       // Raw methods requested
       if (res.ok && res[output] && typeof res[output] === "function") {

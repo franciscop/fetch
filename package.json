@@ -47,7 +47,10 @@
   },
   "jest": {
     "testEnvironment": "jest-environment-node",
-    "transform": {}
+    "transform": {},
+    "setupFiles": [
+      "./setup.js"
+    ]
   },
   "babel": {
     "presets": [
