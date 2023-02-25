@@ -11,9 +11,8 @@
   "scripts": {
     "build": "rollup -c",
     "size": "echo $(gzip -c index.min.js | wc -c) bytes",
-    "start": "npm run watch # Start ~= Start dev",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles",
-    "watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles"
+    "start": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch --coverage --detectOpenHandles",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --detectOpenHandles"
   },
   "keywords": [
     "fetch",
