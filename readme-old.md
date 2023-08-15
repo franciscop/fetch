@@ -15,26 +15,27 @@ await api.patch("/pokemon/150", { type: "psychic" });
 ```
 
 - Create instances with shared options across requests.
-- Configurable **cache** that works in-memory, with redis, or others.
-- Automatically encode and decode JSON bodies.
-- Await/Async Promises; `>= 400 and <= 100` will throw an error.
+- Automatically encode object and array bodies as JSON.
+- Automatically decode JSON responses based on the headers.
+- Await/Async Promises; `>= 400 and <= 100` will _reject_ with an error.
 - Credentials: "include" by default
 - Interceptors: `before` the request, `after` the response and catch with `error`.
-- Designed for both Node.js and the browser through its extensible cache system.
+- Deduplicates parallel GET requests.
+- Works the same way in Node.js and the browser.
 - No dependencies; include it with a simple `<script>` on the browser.
-- Full Types definitions so you get nice autocomplete
 
 ```js
-import fch from "fch";
-
-const api = fch.create({ baseUrl, headers, ...options });
+import api from "fch";
 
 api.get(url, { headers, ...options });
 api.head(url, { headers, ...options });
-api.post(url, body, { headers, ...options });
-api.patch(url, body, { headers, ...options });
-api.put(url, body, { headers, ...options });
-api.del(url, { headers, ...options });
+api.post(url, { body, headers, ...options });
+api.patch(url, { body, headers, ...options });
+api.put(url, { body, headers, ...options });
+api.del(url, { body, headers, ...options });
+api.delete(url, { body, headers, ...options });
+
+api.create({ url, body, headers, ...options });
 ```
 
 | Options                   | Default            | Description                              |
@@ -46,7 +47,7 @@ api.del(url, { headers, ...options });
 | [`query`](#query)         | `{}`               | Add query parameters to the URL          |
 | [`headers`](#headers)     | `{}`               | Shared headers across all requests       |
 | [`output`](#output)       | `"body"`           | The return value of the API call         |
-| [`cache`](#cache)         | `{ expire: 0 }`    | How long to reuse the response body      |
+| [`dedupe`](#dedupe)       | `true`             | Reuse concurrently GET requests          |
 | [`before`](#interceptors) | `req => req`       | Process the request before sending it    |
 | [`after`](#interceptors)  | `res => res`       | Process the response before returning it |
 | [`error`](#interceptors)  | `err => throw err` | Process errors before returning them     |
@@ -92,14 +93,12 @@ api.headers = {}; // Merged with the headers on a per-request basis
 
 // Control simple variables
 api.output = "body"; // Return the parsed body; use 'response' or 'stream' otherwise
-api.cache = { expires: 0 }; // Avoid sending GET requests that were already sent recently
+api.dedupe = true; // Avoid sending concurrent GET requests to the same path
 
 // Interceptors
 api.before = (req) => req;
 api.after = (res) => res;
-api.error = (err) => {
-  throw err;
-};
+api.error = (err) => Promise.reject(err);
 ```
 
 They can all be defined globally as shown above, passed manually as the options argument, or be used when [creating a new instance](#create-an-instance).
@@ -138,18 +137,23 @@ import api from "fch";
 const cats = await api.get("/cats");
 console.log(cats);
 const { id } = await api.post("/cats", { name: "snowbll" });
-await api.patch(`/cats/${id}`, { name: "snowball" });
+await api.put(`/cats/${id}`, { name: "snowball" });
 ```
 
 ### Url
 
-Specify where to send the request to. It must be the first argument in all methods and the base call:
+Specify where to send the request to. It's normally the first argument, though technically you can use both styles:
 
 ```js
 import api from "fch";
 
+// Recommended way of specifying the Url
+await api.post("/hello", { body: "...", headers: {} });
+
+// These are also valid if you prefer their style; we won't judge
 await api("/hello", { method: "post", body: "...", headers: {} });
-await api.post("/hello", body, { headers: {} });
+await api({ url: "/hello", method: "post", headers: {}, body: "..." });
+await api.post({ url: "/hello", headers: {}, body: "..." });
 ```
 
 It can be either absolute or relative, in which case it'll use the local one in the page. It's recommending to set `baseUrl`:
@@ -167,7 +171,7 @@ api.get("/hello");
 
 > These docs refer to the REQUEST body, for the RESPONSE body see the [**Output docs**](#output).
 
-The `body` can be a string, a plain object|array, a FormData instance, a ReadableStream, a SubmitEvent or a HTMLFormElement. If it's a plain array or object, it'll be stringified and the header `application/json` will be added:
+The `body` can be a string, a plain object|array or a FormData instance. If it's an array or object, it'll be stringified and the header `application/json` will be added. Otherwise it'll be sent as plain text:
 
 ```js
 import api from "api";
@@ -187,61 +191,45 @@ form.onsubmit = (e) => api.post("/houses", e.target);
 form.onsubmit = (e) => api.post("/houses", new FormData(e.target));
 ```
 
-The methods `GET`, `HEAD` and `DELETE` do not accept a body and it'll be ignored if you try to force it into the options.
+The methods `GET`, `HEAD` and `DELETE` do not accept a body and it'll be ignored.
 
 ### Query
 
-You can easily pass url query parameters by using the option `query`:
+You can easily pass GET query parameters by using the option `query`:
 
 ```js
 api.get("/cats", { query: { limit: 3 } });
 // /cats?limit=3
 ```
 
-While rare, some times you might want to persist a query parameter across requests and always include it; in that case, you can define it globally and it'll be added to every request, or on an instance:
+While rare, some times you might want to persist a query parameter across requests and always include it; in that case, you can define it globally and it'll be added to every request:
 
 ```js
-import fch from "fch";
-fch.query.myparam = "abc";
+import api from "fch";
+api.query.myparam = "abc";
 
-fch.get("/cats", { query: { limit: 3 } });
+api.get("/cats", { query: { limit: 3 } });
 // /cats?limit=3&myparam=abc
-
-const api = fch.create({ query: { sort: "asc" } });
-api.get("/cats");
-// /cats?sort=asc&myparam=abc
-```
-
-For POST or others, they go into the options as usual:
-
-```js
-fch.post("/cats", { my: "body" }, { query: { abc: "def" } });
-// /cats?abc=def
 ```
 
 ### Headers
 
-You can define headers in 4 ways:
-
-- Globally, in which case they'll be added to every request
-- On an instance, so they are added every time you use that instance
-- Per-request, so that they are only added to the current request.
-- In the `before` interceptor, which again can be globa, on an instance, or per-request
+You can define headers globally, in which case they'll be added to every request, or locally, so that they are only added to the current request. You can also add them in the `before` callback:
 
 ```js
-import fch from "fch";
+import api from "fch";
 
 // Globally, so they are reused across all requests
-fch.headers.a = "b";
+api.headers.a = "b";
 
 // With an interceptor, in case you need dynamic headers per-request
-fch.before = (req) => {
+api.before = (req) => {
   req.headers.c = "d";
   return req;
 };
 
 // Set them for this single request:
-fch.get("/hello", { headers: { e: "f" } });
+api.get("/hello", { headers: { e: "f" } });
 // Total headers on the request:
 // { a: 'b', c: 'd', e: 'f' }
 ```
@@ -249,7 +237,6 @@ fch.get("/hello", { headers: { e: "f" } });
 When to use each?
 
 - If you need headers shared across all requests, like an API key, then the global one is the best place.
-- If it's all the requests to only certain endpoint, like we are communicating to multiple endpoints use the instance
 - When you need to extract them dynamically from somewhere it's better to use the .before() interceptor. An example would be the user Authorization token.
 - When it changes on each request, it's not consistent or it's an one-off, use the option argument.
 
@@ -261,8 +248,6 @@ The default output manipulation is to expect either plain `TEXT` as `plain/text`
 const cats = await api.get("/cats");
 console.log(cats); // [{ id: 1, name: 'Whiskers', ... }, ...]
 ```
-
-> Note: for your typical API, we recommend sending the proper headers from the API and **not** using the more advanced options below.
 
 For more expressive control, you can use the **`output` option** (either as a default when [creating an instance](#create-an-instance) or with each call), or using a method:
 
@@ -319,143 +304,53 @@ For example, return the raw body as a `ReadableStream` with the option `stream`:
 ```js
 const stream = await api.get('/cats', { output: 'stream' });
 stream.pipeTo(...);
-// or
-const stream = await api.get('/cats').stream();
-stream.pipeTo(...);
 ```
 
-### Cache
+### Dedupe
 
-The cache (disabled by default) is a great method to reduce the number of API requests we make. While it's possible to modify the global fch to add a cache, we recommend to always use it per-instance or per-request. Options:
-
-- `expire`: the amount of time the cached data will be valid for, it can be a number (seconds) or a string such as `1hour`, `1week`, etc. (based on [parse-duration](https://github.com/jkroso/parse-duration))
-- `store`: the store where the cached data will be stored.
-- `shouldCache`: a function that returns a boolean to determine whether the current data should go through the cache process.
-- `createKey`: a function that takes the request and generates a unique key for that request, which will be the same for the next time that same request is made. Defaults to method+url.
-
-> Note: cache should only be used through `fch.create({ cache: ... })`, not through the global instance.
-
-To activate the cache, we just need to set a time as such:
+When you perform a GET request to a given URL, but another GET request _to the same_ URL is ongoing, it'll **not** create a new request and instead reuse the response when the first one is finished:
 
 ```js
-// This API has 1h by default:
-const api = fch.create({
-  baseUrl: 'https://api.myweb.com/'
-  cache: '1h'
+fetch.mockOnce("a").mockOnce("b");
+const res = await Promise.all([fch("/a"), fch("/a")]);
+
+// Reuses the first response if two are launched in parallel
+expect(res).toEqual(["a", "a"]);
+```
+
+You can disable this by setting either the global `fch.dedupe` option to `false` or by passing an option per request:
+
+```js
+// Globally set it for all calls
+fch.dedupe = true; // [DEFAULT] Dedupes GET requests
+fch.dedupe = false; // All fetch() calls trigger a network call
+
+// Set it on a per-call basis
+fch("/a", { dedupe: true }); // [DEFAULT] Dedupes GET requests
+fch("/a", { dedupe: false }); // All fetch() calls trigger a network call
+```
+
+> We do not support deduping other methods besides `GET` right now
+
+Note that opting out of deduping a request will _also_ make that request not be reusable, see this test for details:
+
+```js
+it("can opt out locally", async () => {
+  fetch.once("a").once("b").once("c");
+  const res = await Promise.all([
+    fch("/a"),
+    fch("/a", { dedupe: false }),
+    fch("/a"), // Reuses the 1st response, not the 2nd one
+  ]);
+
+  expect(res).toEqual(["a", "b", "a"]);
+  expect(fetch.mock.calls.length).toEqual(2);
 });
-
-// This specific call will be cached for 20s
-api.get('/somedata', { cache: '20s' });
-```
-
-Your cache will have a `store`; by default we create an in-memory store, but you can also use `redis` and it's fully compatible. Note now `cache` is now an object:
-
-```js
-import fch from "fch";
-import { createClient } from "redis";
-
-// Create a redis client
-const store = createClient();
-await store.connect();
-
-const api = fch.create({
-  cache: {
-    store: store,
-    expire: "1h",
-  },
-});
-```
-
-That's the basic usage, but "invalidating cache" is not one of the complex topics in CS for no reason. Let's dig deeper. To clear the cache, you can call `cache.clear()` at any time:
-
-```js
-const api = fch.create({ cache: "1h" });
-
-// Remove them all
-await api.cache.clear();
-```
-
-You can always access the store of the instance through `api.cache.store`, so we can do low-level operations on the store as such if needed:
-
-```js
-import fch from "fch";
-import { createClient } from "redis";
-
-// Initialize it straight away
-const api = fch.create({
-  cache: {
-    store: createClient(),
-    expire: "1h",
-  },
-});
-
-// Connect it here now
-await api.cache.store.connect();
-
-// Later on, maybe in a different place
-await api.cache.store.flushDB();
-```
-
-Finally, the other two bits that are relevant for cache are `shouldCache` and `createKey`. For the most basic examples the default probably works, but you might want more advanced configuration:
-
-```js
-const api = fch.create({
-  cache: {
-    // Default shouldCache; Note the lowercase
-    shouldCache: (request) => request.method === "get",
-
-    // Default createKey;
-    createKey: (request) => request.method + ":" + request.url,
-  },
-});
-```
-
-For example, if you want to differentiate the auth requests from the non-auth requests, you can do it so:
-
-```js
-import api from "./api";
-
-const onLogin = (user) => {
-  // ... Do some other stuff
-
-  // Remove the old requests since we were not auth'ed yet
-  api.cache.clear();
-
-  // Create a key unique for this user
-  api.cache.createKey = (req) => user.id + ":" + req.method + ":" + req.url;
-};
-```
-
-Or maybe you just want to NOT cache any of the requests that have an `Authorization` header, you can do so:
-
-```js
-const api = fch.create({
-  cache: {
-    expire: "1week",
-
-    // Note the lowercase in both! we normalize them to be lowercase
-    shouldCache: (req) => req.method === "get" && !req.headers.authorization,
-  },
-});
-```
-
-#### Creating a store.
-
-You might want to create a custom store. Please have a look at `src/store.js`, but basically you need an object that implements these methods:
-
-```js
-type Store = {
-  get: (key: string) => Promise<any>,
-  set: (key: string, value: any, options?: { EX: number }) => Promise<null>,
-  del: (key: string) => Promise<null>,
-  exists: (key: string) => Promise<boolean>,
-  flushAll: () => Promise<any>,
-};
 ```
 
 ### Interceptors
 
-You can also add the interceptors `before`, `after` and `error`:
+You can also easily add the interceptors `before`, `after` and `error`:
 
 - `before`: Called when the request is fully formed, but before actually launching it.
 - `after`: Called just after the response is created and if there was no error, but before parsing anything else.
