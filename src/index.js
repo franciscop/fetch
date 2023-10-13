@@ -1,43 +1,28 @@
 import swear from "swear";
+
 import createCacheStore from "./store";
 
-const durationRE = /(-?(?:\d+\.?\d*|\d*\.?\d+)(?:e[-+]?\d+)?)\s*([\p{L}]*)/giu;
+const times = /(-?(?:\d+\.?\d*|\d*\.?\d+)(?:e[-+]?\d+)?)\s*([\p{L}]*)/iu;
 
-parse.nanosecond = parse.ns = 1 / 1e6;
-parse["µs"] = parse["μs"] = parse.us = parse.microsecond = 1 / 1e3;
 parse.millisecond = parse.ms = 1;
 parse.second = parse.sec = parse.s = parse[""] = parse.ms * 1000;
 parse.minute = parse.min = parse.m = parse.s * 60;
 parse.hour = parse.hr = parse.h = parse.m * 60;
 parse.day = parse.d = parse.h * 24;
 parse.week = parse.wk = parse.w = parse.d * 7;
-parse.month = parse.b = parse.d * (365.25 / 12);
 parse.year = parse.yr = parse.y = parse.d * 365.25;
+parse.month = parse.b = parse.y / 12;
 
-function unitRatio(str) {
-  return parse[str] || parse[str.toLowerCase().replace(/s$/, "")];
-}
-
-function parse(str = "", format = "ms") {
+export function parse(str = "") {
   if (!str) return 0;
-  if (typeof str === "boolean") return str ? 60 * 60 : 0;
+  if (str === true) return 60 * 60 * 1000;
   if (typeof str === "number") return str;
-  var result = null;
   // ignore commas/placeholders
-  str = (str + "").replace(/(\d)[,_](\d)/g, "$1$2");
-  var isNegative = str[0] === "-";
-  str.replace(durationRE, function (_, n, units) {
-    units = unitRatio(units);
-    if (units) result = (result || 0) + Math.abs(parseFloat(n, 10)) * units;
-  });
-
-  return Math.max(
-    1,
-    Math.round(
-      (result && (result / (unitRatio(format) || 1)) * (isNegative ? -1 : 1)) /
-        1000
-    )
-  );
+  str = str.toLowerCase().replace(/[,_]/g, "");
+  let [_, value, units] = times.exec(str) || [];
+  units = parse[units] || parse[units.replace(/s$/, "")] || 1000;
+  const result = units * parseFloat(value, 10);
+  return Math.abs(Math.round(result));
 }
 
 // Check if the body is an object/array, and if so return true so that it can be
@@ -105,7 +90,7 @@ const getBody = async (res) => {
   return isJson ? JSON.parse(text) : text;
 };
 
-const parseResponse = async (res, error) => {
+const parseResponse = async (res) => {
   // Need to manually create it to set some things like the proper response
   let response = {
     status: res.status,
@@ -129,45 +114,51 @@ const parseResponse = async (res, error) => {
 };
 
 const createFetch = (request, { ref, after, error, output }) => {
-  return fetch(request.url, request).then(async (res) => {
-    ref.res = res;
+  return fetch(request.url, request)
+    .then(async (res) => {
+      ref.res = res;
 
-    // In this case, do not process anything else just return the ReadableStream
-    if (res.ok && output === "stream") {
-      return res.body;
-    }
+      // In this case, do not process anything else just return the ReadableStream
+      if (res.ok && output === "stream") {
+        return res.body;
+      }
 
-    // Raw methods requested
-    if (res.ok && res[output] && typeof res[output] === "function") {
-      return res[output]();
-    }
+      // Raw methods requested
+      if (res.ok && res[output] && typeof res[output] === "function") {
+        return res[output]();
+      }
 
-    // Hijack the response and modify it, earlier than the manual body changes
-    const response = after(await parseResponse(res, error));
+      // Hijack the response and modify it, earlier than the manual body changes
+      const response = after(await parseResponse(res));
 
-    if (output === "body") {
-      return response.body;
-    } else if (output === "response") {
-      return response;
-    } else if (output === "raw") {
-      return res.clone();
-    } else {
-      throw new Error(`Invalid option output="${output}"`);
-    }
-  });
+      if (output === "body") {
+        return response.body;
+      } else if (output === "response") {
+        return response;
+      } else if (output === "raw") {
+        return res.clone();
+      } else {
+        throw new Error(`Invalid option output="${output}"`);
+      }
+    })
+    .catch(error);
 };
 
 const defaultShouldCache = (request) => request.method === "get";
 const defaultCreateKey = (request) => request.method + ":" + request.url;
 
-const createCache = (options = {}, noCache) => {
+const createCache = ({ store, ...options } = {}, noCache) => {
   const cache = {
-    store: createCacheStore({ expire: parse(options.expire) }),
+    store: store
+      ? swear(store)
+      : createCacheStore({ expire: parse(options.expire) }),
     shouldCache: defaultShouldCache,
     createKey: defaultCreateKey,
     ...options,
   };
-  cache.clear = () => cache.store?.flushAll();
+
+  cache.clear = () =>
+    Promise.resolve(cache.store).then((store) => store?.flushAll());
 
   // If we REALLY don't want any cache (false + undef|falsy, or any + false)
   if (noCache) {
@@ -242,6 +233,12 @@ function create(defaults = {}) {
     if (cache.shouldCache(request) && cache.expire) {
       const key = cache.createKey(request);
 
+      // Allow to receive async cache stores
+      if (cache.store?.then) {
+        const out = await cache.store;
+        cache.store = out;
+      }
+
       // Already cached, return the previous request
       if (await cache.store.exists(key)) {
         return cache.store.get(key);
@@ -296,11 +293,7 @@ function create(defaults = {}) {
   // Interceptors
   fch.before = defaults.before ?? ((req) => req);
   fch.after = defaults.after ?? ((res) => res);
-  fch.error =
-    defaults.error ??
-    ((err) => {
-      throw err;
-    });
+  fch.error = defaults.error ?? ((err) => Promise.reject(err));
 
   fch.get = (url, opts) => fch(url, { method: "get", ...opts });
   fch.head = (url, opts) => fch(url, { method: "head", ...opts });

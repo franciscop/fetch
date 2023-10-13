@@ -1,6 +1,7 @@
-import fch from "./index.js";
 import mock from "jest-fetch-mock";
 import { ReadableStream } from "stream/web";
+
+import fch from "./index.js";
 
 mock.enableMocks();
 
@@ -76,17 +77,6 @@ describe("fetch()", () => {
     });
   });
 
-  it.skip("accepts Axios syntax as well", async () => {
-    fetch.once("hello");
-    const body = await fch({ url: "/" });
-
-    expect(body).toEqual("hello");
-    expect(fetch.mock.calls.length).toEqual(1);
-    expect(fetch.mock.calls[0][0]).toEqual("/");
-    expect(fetch.mock.calls[0][1].method).toEqual("get");
-    expect(fetch.mock.calls[0][1].headers).toEqual({});
-  });
-
   it("can receive a full response", async () => {
     fetch.once("hello", { status: 200, headers: { hello: "world" } });
     const res = await fch("/", { output: "response" });
@@ -118,7 +108,7 @@ describe("fetch()", () => {
 
   it("can cancel an ongoing request", async () => {
     fetch.once(async () => {
-      await delay(1000); // One full second!
+      await delay(300); // One full second!
       return "hello";
     });
 
@@ -543,6 +533,15 @@ describe("dedupe network calls", () => {
 
     expect(res).toEqual(["a", "a"]);
     expect(fetch.mock.calls.length).toEqual(1);
+  });
+
+  it("can disable cache the cache", async () => {
+    const api = fch.create({ cache: false });
+    fetch.once("a").once("b");
+    const res = await Promise.all([api("/a"), api("/a")]);
+
+    expect(res).toEqual(["a", "b"]);
+    expect(fetch.mock.calls.length).toEqual(2);
   });
 
   it("dedupes named calls", async () => {

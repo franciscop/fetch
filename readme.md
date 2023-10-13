@@ -354,9 +354,9 @@ Your cache will have a `store`; by default we create an in-memory store, but you
 import fch from "fch";
 import { createClient } from "redis";
 
-// Create a redis client
-const store = createClient();
-await store.connect();
+// You can either pass the store instance, or a promise that will
+// return the instance. In this case we are doing the latter
+const store = createClient().connect();
 
 const api = fch.create({
   cache: {
@@ -384,13 +384,10 @@ import { createClient } from "redis";
 // Initialize it straight away
 const api = fch.create({
   cache: {
-    store: createClient(),
+    store: createClient().connect(),
     expire: "1h",
   },
 });
-
-// Connect it here now
-await api.cache.store.connect();
 
 // Later on, maybe in a different place
 await api.cache.store.flushDB();
@@ -438,6 +435,8 @@ const api = fch.create({
   },
 });
 ```
+
+It is this flexible since you can use fch both in the front-end and back-end, so usually in each of them you might want to follow a slightly different strategy.
 
 #### Creating a store.
 

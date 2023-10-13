@@ -33,11 +33,12 @@
   },
   "devDependencies": {
     "check-dts": "^0.7.2",
+    "dotenv": "^16.3.1",
     "esbuild": "^0.19.2",
     "jest": "^28.1.0",
     "jest-environment-jsdom": "^28.1.0",
     "jest-fetch-mock": "^3.0.3",
-    "redis": "^4.6.7",
+    "redis": "^4.6.10",
     "swear": "^1.1.2"
   },
   "jest": {

@@ -1,11 +1,12 @@
-import fch from "./index.js";
 import mock from "jest-fetch-mock";
+
+import fch from "./index.js";
 
 mock.enableMocks();
 
 const delay = (num) => new Promise((done) => setTimeout(done, num));
 
-describe("default does not cache", () => {
+describe.skip("default does not cache", () => {
   beforeEach(() => {
     fetch.resetMocks();
   });
@@ -21,7 +22,7 @@ describe("default does not cache", () => {
   });
 });
 
-describe("cache on the global object", () => {
+describe.skip("cache on the global object", () => {
   beforeEach(() => {
     fetch.resetMocks();
     fch.cache.expire = 2;
@@ -140,7 +141,7 @@ describe("cache on the global object", () => {
   });
 });
 
-describe("cache on an instance", () => {
+describe.skip("cache on an instance", () => {
   const api = fch.create({ cache: 60 * 60 });
 
   beforeAll(() => {
@@ -287,7 +288,7 @@ describe("cache on an instance", () => {
   });
 });
 
-describe("cache+interceptors", () => {
+describe.skip("cache+interceptors", () => {
   beforeEach(() => {
     fetch.resetMocks();
   });

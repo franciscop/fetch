@@ -1,6 +1,9 @@
-import fch from "./index.js";
+import "dotenv/config";
+
 import mock from "jest-fetch-mock";
 import { createClient } from "redis";
+
+import fch from "./index.js";
 
 mock.enableMocks();
 
@@ -8,15 +11,10 @@ const delay = (num) => new Promise((done) => setTimeout(done, num));
 
 if (process.env.REDIS) {
   describe("redis cache client", () => {
-    const api = fch.create({
-      cache: {
-        expire: 1,
-        store: createClient(),
-      },
-    });
+    let api;
     beforeAll(async () => {
-      // Expires in seconds, very low for testing
-      await api.cache.store.connect();
+      const store = createClient().connect();
+      api = fch.create({ cache: { store, expire: 1 } });
     });
     afterAll(async () => {
       await api.cache.store.disconnect();
