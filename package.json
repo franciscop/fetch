@@ -24,7 +24,8 @@
   ],
   "main": "index.min.js",
   "files": [
-    "index.min.js"
+    "index.min.js",
+    "index.d.ts"
   ],
   "types": "index.d.ts",
   "type": "module",
