@@ -24,9 +24,7 @@ export default function createCache(options) {
       const expire = opts.EX || opts.expire || options.expire;
       return cache.set(key, { time, expire, data });
     },
-    keys: async () => {
-      return [...(await cache.keys())];
-    },
+    keys: async () => [...cache.keys()],
     del: async (key) => {
       return cache.delete(key);
     },
