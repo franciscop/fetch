@@ -194,6 +194,8 @@ function create(defaults = {}) {
       after,
       error,
 
+      cache: _lostCache,
+
       ...request
     } = { ...fch, ...options }; // Local option OR global value (including defaults)
 
