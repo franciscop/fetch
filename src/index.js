@@ -215,7 +215,10 @@ function create(defaults = {}) {
     request.headers = createHeaders({ ...fch.headers, ...options.headers });
 
     // Has the event or form, transform it to a FormData
-    if (request.body instanceof SubmitEvent) {
+    if (
+      typeof SubmitEvent !== "undefined" &&
+      request.body instanceof SubmitEvent
+    ) {
       request.body = new FormData(request.body.target);
     }
     if (request.body instanceof HTMLFormElement) {
