@@ -221,7 +221,10 @@ function create(defaults = {}) {
     ) {
       request.body = new FormData(request.body.target);
     }
-    if (request.body instanceof HTMLFormElement) {
+    if (
+      typeof HTMLFormElement !== "undefined" &&
+      request.body instanceof HTMLFormElement
+    ) {
       request.body = new FormData(request.body);
     }
 
