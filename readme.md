@@ -126,8 +126,8 @@ api.get(...);
 api.GET(...);
 
 // Both of these are valid:
-api({ method; 'GET' })
-api({ method; 'get'})
+api({ method: 'GET' })
+api({ method: 'get'})
 ```
 
 Example: adding a new cat and fixing a typo:
@@ -226,7 +226,7 @@ You can define headers in 4 ways:
 - Globally, in which case they'll be added to every request
 - On an instance, so they are added every time you use that instance
 - Per-request, so that they are only added to the current request.
-- In the `before` interceptor, which again can be globa, on an instance, or per-request
+- In the `before` interceptor, which again can be global, on an instance, or per-request
 
 ```js
 import fch from "fch";
@@ -340,7 +340,7 @@ To activate the cache, we just need to set a time as such:
 ```js
 // This API has 1h by default:
 const api = fch.create({
-  baseUrl: 'https://api.myweb.com/'
+  baseUrl: 'https://api.myweb.com/',
   cache: '1h'
 });
 
