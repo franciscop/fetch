@@ -676,7 +676,7 @@ You can also [create an instance](#create-an-instance) that will have the same o
 
 First, we use the native Node.js' fetch() and the browser's native fetch(), so any difference between those also applies to this library. For example, if you were to call `"/"` in the browser it'd refer to the current URL, while in Node.js it'd fail since you need to specify the full URL. Some other places where you might find differences: CORS, cache, etc.
 
-In the library itself there's nothing different between the browser and Node.js, but it might be interesting to note that (if/when implemented) things like cache, etc. in Node.js are normally long-lived and shared, while in a browser request it'd bound to the request itself.
+In the library itself there's nothing different between the browser and Node.js, but it might be interesting to note that things like ephemeral cache in Node.js are normally long-lived and shared, while in a browser request it'd bound to the browser runtime.
 
 ### Differences with Axios
 
@@ -702,17 +702,3 @@ As disadvantages, I can think of two major ones for `fch`:
 
 - Requires Node.js 18+, which is the version that includes `fetch()` by default.
 - Does not support many of the more advanced options, like `onUploadProgress` nor `onDownloadProgress`.
-
-## Releases
-
-### V4
-
-Breaking changes:
-
-- Only ESM exports. Meaning, if you use it in a browser you'll need the `<script type="module">`.
-- The method `fch.del()` (and derivates with fch.create()) have been renamed to `fch.delete()`.
-
-Changes:
-
-- Added `output` options: `raw`, `stream`, `arrayBuffer`, `blob`, `clone`, `formData`, `json`, `text`
-- Gone from 1.2kb down to 1.0kb
