@@ -36,6 +36,6 @@
     // Skip type checking for dependencies
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "include": ["src/index.ts", "src/types/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

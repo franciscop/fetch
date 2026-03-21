@@ -5,7 +5,6 @@ import {
   delay,
   fetchCalls,
   jsonHeaders,
-  mockFetch,
   mockFetchOnce,
   resetFetch,
   textHeaders,
@@ -18,7 +17,7 @@ import {
 
 describe("How to: Stop errors from throwing", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -28,7 +27,7 @@ describe("How to: Stop errors from throwing", () => {
   it("allows stopping errors from throwing with error interceptor", async () => {
     const api = fch.create({
       output: "response",
-      error: (error) => error.response,
+      error: (error: any) => error.response,
     });
 
     mockFetchOnce("Not found", { status: 404, statusText: "Not Found" });
@@ -40,7 +39,7 @@ describe("How to: Stop errors from throwing", () => {
 
 describe("How to: Return the full response", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -85,7 +84,7 @@ describe("How to: Return the full response", () => {
 
 describe("How to: Set a base URL", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -106,7 +105,7 @@ describe("How to: Set a base URL", () => {
 
 describe("How to: Set authorization headers", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -151,7 +150,7 @@ describe("How to: Set authorization headers", () => {
 
 describe("How to: Create an instance", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -178,7 +177,7 @@ describe("How to: Create an instance", () => {
 
 describe("How to: Streaming a response body", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -203,7 +202,7 @@ describe("How to: Streaming a response body", () => {
 
 describe("How to: Cancel ongoing requests", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -237,7 +236,7 @@ describe("How to: Cancel ongoing requests", () => {
 
 describe("How to: Define shared options", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
@@ -259,7 +258,7 @@ describe("How to: Define shared options", () => {
 
 describe("How to: Differences with Axios (API comparison)", () => {
   beforeEach(() => {
-    mockFetch();
+    resetFetch();
   });
 
   afterEach(() => {
