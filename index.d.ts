@@ -5,7 +5,7 @@ type Store = {
     has?: (key: string) => Promise<boolean>;
     clear?: () => Promise<any>;
 };
-type Cache = boolean | number | string | Store | {
+type Cache = Store | {
     expire?: number | string;
     store?: Store;
     shouldCache?: (request: any) => boolean;

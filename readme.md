@@ -326,21 +326,27 @@ stream.pipeTo(...);
 
 ### Cache
 
+> We use **[polystore](https://polystore.dev/)** for Cache management.
+
 The cache (disabled by default) is a great method to reduce the number of API requests we make. We use [polystore](https://polystore.dev/) for cache storage, which provides a unified interface for multiple storage backends.
 
 > Note: cache should only be used through `fch.create({ cache: ... })`, not through the global instance.
 
-To activate the cache, you can pass a time string or number (seconds), and an in-memory store will be created automatically:
+To activate the cache, create a polystore instance with your desired expiration:
 
 ```js
+import kv from "polystore";
+
 // This API has 1h cache by default (uses in-memory Map):
+const cache = kv(new Map()).expires("1h");
 const api = fch.create({
-  baseUrl: 'https://api.myweb.com/',
-  cache: '1h'
+  cache,
+  baseUrl: 'https://api.myweb.com/'
 });
 
 // This specific call will be cached for 20s
-api.get('/somedata', { cache: '20s' });
+const shortCache = kv(new Map()).expires("20s");
+api.get('/somedata', { cache: shortCache });
 ```
 
 For more control, you can use **polystore** to create a custom cache store with different backends (in-memory, Redis, localStorage, etc.):
