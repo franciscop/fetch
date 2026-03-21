@@ -74,4 +74,3 @@ declare function create(defaults?: Options): FchInstance;
 export { create };
 declare const _default: FchInstance;
 export default _default;
-//# sourceMappingURL=index.d.ts.map

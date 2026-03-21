@@ -1,0 +1,74 @@
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+
+import fch from "./index.js";
+import {
+	fetchCalls,
+	fetchMock,
+	mockFetchOnce,
+	resetFetch,
+} from "./test-utils.js";
+
+describe("HTTP method shortcuts", () => {
+	beforeEach(() => {
+		resetFetch();
+		fch.cache.shouldCache = () => false;
+		fch.baseUrl = null;
+		fch.baseURL = null;
+	});
+
+	afterEach(() => {
+		if (fetchMock) {
+			fetchMock.mockRestore();
+		}
+	});
+
+	it("can use the `fetch.get()` shorthand", async () => {
+		mockFetchOnce("my-data");
+		const body = await fch.get("/");
+		expect(body).toBe("my-data");
+		expect(fetchCalls[0][1].method).toEqual("get");
+	});
+
+	it("can use the `fetch.head()` shorthand", async () => {
+		mockFetchOnce("my-data");
+		const body = await fch.head("/");
+		expect(body).toBe("my-data");
+		expect(fetchCalls[0][1].method).toEqual("head");
+	});
+
+	it("can use the `fetch.patch()` shorthand", async () => {
+		mockFetchOnce("my-data");
+		expect(
+			await fch.patch("/", { hello: "world" }, { headers: { a: "b" } }),
+		).toBe("my-data");
+		expect(fetchCalls[0][1].method).toEqual("patch");
+		expect(fetchCalls[0][1].body).toEqual(JSON.stringify({ hello: "world" }));
+		expect(fetchCalls[0][1].headers.a).toEqual("b");
+	});
+
+	it("can use the `fetch.put()` shorthand", async () => {
+		mockFetchOnce("my-data");
+		expect(
+			await fch.put("/", { hello: "world" }, { headers: { a: "b" } }),
+		).toBe("my-data");
+		expect(fetchCalls[0][1].method).toEqual("put");
+		expect(fetchCalls[0][1].body).toEqual(JSON.stringify({ hello: "world" }));
+		expect(fetchCalls[0][1].headers.a).toEqual("b");
+	});
+
+	it("can use the `fetch.post()` shorthand", async () => {
+		mockFetchOnce("my-data");
+		expect(
+			await fch.post("/", { hello: "world" }, { headers: { a: "b" } }),
+		).toBe("my-data");
+		expect(fetchCalls[0][1].method).toEqual("post");
+		expect(fetchCalls[0][1].body).toEqual(JSON.stringify({ hello: "world" }));
+		expect(fetchCalls[0][1].headers.a).toEqual("b");
+	});
+
+	it("can use the `fetch.delete()` shorthand", async () => {
+		mockFetchOnce("my-data");
+		expect(await fch.delete("/")).toBe("my-data");
+		expect(fetchCalls[0][1].method).toEqual("delete");
+	});
+});
