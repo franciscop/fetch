@@ -14,8 +14,8 @@ type Cache =
   | {
       expire?: number | string;
       store?: Store;
-      shouldCache?: (request) => boolean;
-      createKey?: (request) => string;
+      shouldCache?: (request: Request) => boolean;
+      createKey?: (request: Request) => string;
     };
 
 type Headers = { [name: string]: string };

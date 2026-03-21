@@ -1,30 +1,5 @@
 import swear from "swear";
 
-import createCacheStore from "./store";
-
-const times = /(-?(?:\d+\.?\d*|\d*\.?\d+)(?:e[-+]?\d+)?)\s*([\p{L}]*)/iu;
-
-parse.millisecond = parse.ms = 1;
-parse.second = parse.sec = parse.s = parse[""] = parse.ms * 1000;
-parse.minute = parse.min = parse.m = parse.s * 60;
-parse.hour = parse.hr = parse.h = parse.m * 60;
-parse.day = parse.d = parse.h * 24;
-parse.week = parse.wk = parse.w = parse.d * 7;
-parse.year = parse.yr = parse.y = parse.d * 365.25;
-parse.month = parse.b = parse.y / 12;
-
-export function parse(str = "") {
-  if (!str) return 0;
-  if (str === true) return 60 * 60 * 1000;
-  if (typeof str === "number") return str;
-  // ignore commas/placeholders
-  str = str.toLowerCase().replace(/[,_]/g, "");
-  let [_, value, units] = times.exec(str) || [];
-  units = parse[units] || parse[units.replace(/s$/, "")] || 1000;
-  const result = units * parseFloat(value, 10);
-  return Math.abs(Math.round(result));
-}
-
 // Check if the body is an object/array, and if so return true so that it can be
 // properly JSON.stringify() + adding the proper ContentType
 const hasObjectBody = (body) => {
@@ -59,7 +34,7 @@ const createUrl = (url, query, base) => {
     Object.fromEntries([
       ...new URLSearchParams(noUndefined(query)),
       ...new URLSearchParams(noUndefined(urlQuery)),
-    ])
+    ]),
   ).toString();
   if (entries) {
     path = path + "?" + entries;
@@ -147,23 +122,15 @@ const createFetch = (request, { ref, after, error, output }) => {
 const defaultShouldCache = (request) => request.method === "get";
 const defaultCreateKey = (request) => request.method + ":" + request.url;
 
-const createCache = ({ store, ...options } = {}, noCache) => {
+const createCache = (store) => {
   const cache = {
-    store: store
-      ? swear(store)
-      : createCacheStore({ expire: parse(options.expire) }),
+    store: store ?? null,
     shouldCache: defaultShouldCache,
     createKey: defaultCreateKey,
-    ...options,
   };
 
   cache.clear = () =>
-    Promise.resolve(cache.store).then((store) => store?.flushAll());
-
-  // If we REALLY don't want any cache (false + undef|falsy, or any + false)
-  if (noCache) {
-    cache.shouldCache = () => false;
-  }
+    Promise.resolve(cache.store).then((store) => store?.clear());
 
   return cache;
 };
@@ -172,13 +139,13 @@ function create(defaults = {}) {
   const ongoing = {};
   const ref = {};
   const extraMethods = {
-    text: () => ref.res.text(),
-    json: () => ref.res.json(),
-    blob: () => ref.res.blob(),
-    stream: () => ref.res.body,
-    arrayBuffer: () => ref.res.arrayBuffer(),
-    formData: () => ref.res.formData(),
-    body: () => getBody(ref.res),
+    text: () => ref.res.clone().text(),
+    json: () => ref.res.clone().json(),
+    blob: () => ref.res.clone().blob(),
+    stream: () => ref.res.clone().body,
+    arrayBuffer: () => ref.res.clone().arrayBuffer(),
+    formData: () => ref.res.clone().formData(),
+    body: () => getBody(ref.res.clone()),
     clone: () => ref.res.clone(),
     raw: () => ref.res.clone(),
     response: () => parseResponse(ref.res.clone()),
@@ -200,16 +167,12 @@ function create(defaults = {}) {
     } = { ...fch, ...options }; // Local option OR global value (including defaults)
 
     const cache = { ...fch.cache };
-    const isValid = (v) => ["number", "string", "boolean"].includes(typeof v);
-    cache.expire = parse(
-      [options.cache?.expire, options.cache, cache?.expire, cache].find(isValid)
-    );
 
     // Absolute URL if possible; Default method; merge the default headers
     request.url = createUrl(
       url,
       { ...fch.query, ...options.query },
-      request.baseUrl ?? request.baseURL
+      request.baseUrl ?? request.baseURL,
     );
     request.method = request.method.toLowerCase() || "GET";
     request.headers = createHeaders({ ...fch.headers, ...options.headers });
@@ -238,17 +201,11 @@ function create(defaults = {}) {
     // Hijack the requeset and modify it
     request = before(request);
 
-    if (cache.shouldCache(request) && cache.expire) {
+    if (cache.shouldCache(request) && cache.store) {
       const key = cache.createKey(request);
 
-      // Allow to receive async cache stores
-      if (cache.store?.then) {
-        const out = await cache.store;
-        cache.store = out;
-      }
-
       // Already cached, return the previous request
-      if (await cache.store.exists(key)) {
+      if (await cache.store.has(key)) {
         return cache.store.get(key);
       }
 
@@ -270,7 +227,7 @@ function create(defaults = {}) {
         delete ongoing[key];
       }
       // Note: failing the request will throw and thus never cache
-      await cache.store.set(key, res, { EX: cache.expire });
+      await cache.store.set(key, res);
       return res;
     }
 
@@ -285,14 +242,8 @@ function create(defaults = {}) {
   fch.headers = defaults.headers ?? {};
   fch.baseUrl = defaults.baseUrl ?? defaults.baseURL ?? null;
 
-  // Accept a simple "false"ache = { expire: parse(defaults.cache) };
-  if (["number", "string", "boolean"].includes(typeof defaults.cache)) {
-    defaults.cache = { expire: defaults.cache };
-  }
-  fch.cache = createCache(
-    defaults.cache,
-    defaults.cache?.expire === false || defaults.cache?.expire === 0
-  );
+  // Handle cache - user passes a polystore instance directly
+  fch.cache = createCache(defaults.cache);
 
   // Default options
   fch.output = defaults.output ?? "body";
