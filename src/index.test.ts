@@ -1,26 +1,22 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  mock,
-  spyOn,
-} from "bun:test";
-import { ReadableStream } from "stream/web";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 
 import fch from "./index.js";
 
-const delay = (num) => new Promise((done) => setTimeout(done, num));
-const jsonType = "application/json";
-const jsonHeaders = { headers: { "Content-Type": jsonType } };
-const textHeaders = { headers: { "Content-Type": "text/plain" } };
+const delay = (num: number): Promise<void> =>
+  new Promise((done) => setTimeout(done, num));
+const jsonType: string = "application/json";
+const jsonHeaders: { headers: { "Content-Type": string } } = {
+  headers: { "Content-Type": jsonType },
+};
+const textHeaders: { headers: { "Content-Type": string } } = {
+  headers: { "Content-Type": "text/plain" },
+};
 
 // Mock fetch globally
-let fetchMock;
-let fetchCalls = [];
+let fetchMock: any;
+let fetchCalls: any[] = [];
 
-async function normalizeResponse(response, args) {
+async function normalizeResponse(response: any, args: any): Promise<Response> {
   if (typeof response === "function") {
     const result = await response(...args);
     return normalizeResponse(result, args);
@@ -30,6 +26,10 @@ async function normalizeResponse(response, args) {
   }
   if (response instanceof Response) {
     return response;
+  }
+  if (response instanceof FormData) {
+    // FormData needs to be passed directly to Response constructor
+    return new Response(response);
   }
   if (response && typeof response === "object" && response.body !== undefined) {
     // Handle { body: ..., status: ..., headers: ... } format
@@ -45,33 +45,37 @@ async function normalizeResponse(response, args) {
   return new Response(String(response));
 }
 
-function mockFetch(response) {
+function mockFetch(response: any): void {
   fetchCalls = [];
-  fetchMock = spyOn(global, "fetch").mockImplementation(async (...args) => {
-    fetchCalls.push(args);
-    return normalizeResponse(response, args);
-  });
+  fetchMock = (spyOn(global, "fetch") as any).mockImplementation(
+    async (...args: any[]) => {
+      fetchCalls.push(args);
+      return normalizeResponse(response, args);
+    },
+  );
 }
 
-function mockFetchOnce(response, init) {
+function mockFetchOnce(response: any, init?: ResponseInit): any {
   // If init is provided, wrap response in Response object with init options
   if (init && typeof response === "string") {
     response = new Response(response, init);
   }
 
-  const responses = [response];
+  const responses: any[] = [response];
   let callCount = 0;
   fetchCalls = [];
-  fetchMock = spyOn(global, "fetch").mockImplementation(async (...args) => {
-    fetchCalls.push(args);
-    const resp = responses[callCount] || responses[responses.length - 1];
-    callCount++;
-    return normalizeResponse(resp, args);
-  });
+  fetchMock = (spyOn(global, "fetch") as any).mockImplementation(
+    async (...args: any[]) => {
+      fetchCalls.push(args);
+      const resp = responses[callCount] || responses[responses.length - 1];
+      callCount++;
+      return normalizeResponse(resp, args);
+    },
+  );
 
   // Return an object that supports chaining .once()
   return {
-    once(nextResponse, nextInit) {
+    once(nextResponse: any, nextInit?: ResponseInit) {
       if (nextInit && typeof nextResponse === "string") {
         responses.push(new Response(nextResponse, nextInit));
       } else {
@@ -116,12 +120,12 @@ describe("fetch()", () => {
   });
 
   describe("streaming", () => {
-    const stringToStream = (str) => {
+    const stringToStream = (str: string): ReadableStream => {
       return new Blob([str], { type: "text/plain" }).stream();
     };
-    const streamToString = async (stream) => {
+    const streamToString = async (stream: ReadableStream): Promise<string> => {
       let str = "";
-      for await (let chunk of stream) {
+      for await (let chunk of stream as any) {
         // Handle both string chunks and Uint8Array/Buffer chunks
         if (typeof chunk === "string") {
           str += chunk;
@@ -158,7 +162,7 @@ describe("fetch()", () => {
       mockFetchOnce(() =>
         Promise.resolve(new Response(stringToStream("MyReply"))),
       );
-      const data = await fch.get("/").stream();
+      const data = await (fch.get("/") as any).stream();
       expect(await streamToString(data)).toBe("MyReply");
     });
   });
@@ -316,7 +320,7 @@ describe("fetch()", () => {
 
   it("ignores invalid options", async () => {
     mockFetchOnce(JSON.stringify({ secret: "12345" }), jsonHeaders);
-    const res = await fch("https://google.com/", 10);
+    const res = await fch("https://google.com/", 10 as any);
 
     expect(res).toEqual({ secret: "12345" });
     expect(fetchCalls.length).toEqual(1);
@@ -370,8 +374,7 @@ describe("fetch()", () => {
   it("can accept network rejections", async () => {
     mockFetchOnce(JSON.stringify("unauthorized"), {
       status: 401,
-      ok: false,
-    });
+    } as any);
     const error = await fch("/").catch((error) => error);
     expect(error instanceof Error).toBe(true);
     expect(error.message).toBe("Error 401");
@@ -443,16 +446,19 @@ describe("output option", () => {
     expect(fetchCalls.length).toEqual(1);
   });
 
-  it.skip("output=formData returns a FormData instance", async () => {
-    mockFetchOnce(new FormData());
+  it("output=formData returns a FormData instance", async () => {
+    const formData = new FormData();
+    formData.append("test", "value");
+    mockFetchOnce(formData);
     const body = await fch("/", { output: "formData" });
     expect(body instanceof FormData).toBe(true);
+    expect(body.get("test")).toBe("value");
     expect(fetchCalls.length).toEqual(1);
   });
 
   it("output=response returns the processed response+body", async () => {
     mockFetchOnce("hello");
-    const res = await fch("/").response();
+    const res = await (fch("/") as any).response();
     expect(res.body).toBe("hello");
     expect(res.status).toBe(200);
     expect(fetchCalls.length).toEqual(1);
@@ -478,7 +484,7 @@ describe("output methods", () => {
 
   it(".body() can parse JSON", async () => {
     mockFetchOnce(JSON.stringify({ secret: "12345" }), jsonHeaders);
-    const body = await fch("/").body();
+    const body = await (fch("/") as any).body();
 
     expect(body).toEqual({ secret: "12345" });
     expect(fetchCalls.length).toEqual(1);
@@ -486,7 +492,7 @@ describe("output methods", () => {
 
   it(".body() can parse plain text", async () => {
     mockFetchOnce("hiii", textHeaders);
-    const body = await fch("/").text();
+    const body = await (fch("/") as any).text();
 
     expect(body).toEqual("hiii");
     expect(fetchCalls.length).toEqual(1);
@@ -494,7 +500,7 @@ describe("output methods", () => {
 
   it(".text() can parse plain text", async () => {
     mockFetchOnce("hiii");
-    const body = await fch("/").text();
+    const body = await (fch("/") as any).text();
 
     expect(body).toEqual("hiii");
     expect(fetchCalls.length).toEqual(1);
@@ -502,7 +508,7 @@ describe("output methods", () => {
 
   it(".json() can parse JSON", async () => {
     mockFetchOnce(JSON.stringify({ a: "b" }));
-    const body = await fch("/").json();
+    const body = await (fch("/") as any).json();
 
     expect(body).toEqual({ a: "b" });
     expect(fetchCalls.length).toEqual(1);
@@ -510,7 +516,7 @@ describe("output methods", () => {
 
   it(".blob() can parse blobs", async () => {
     mockFetchOnce("hello");
-    const body = await fch("/").blob();
+    const body = await (fch("/") as any).blob();
 
     expect(await body.text()).toEqual("hello");
     expect(fetchCalls.length).toEqual(1);
@@ -518,21 +524,24 @@ describe("output methods", () => {
 
   it(".arrayBuffer() returns an arrayBuffer", async () => {
     mockFetchOnce(new ArrayBuffer(8));
-    const body = await fch("/").arrayBuffer();
+    const body = await (fch("/") as any).arrayBuffer();
     expect(body instanceof ArrayBuffer).toBe(true);
     expect(fetchCalls.length).toEqual(1);
   });
 
-  it.skip(".formData() returns a FormData instance", async () => {
-    mockFetchOnce(new FormData());
-    const body = await fch("/").formData();
+  it(".formData() returns a FormData instance", async () => {
+    const formData = new FormData();
+    formData.append("key", "value");
+    mockFetchOnce(formData);
+    const body = await (fch("/") as any).formData();
     expect(body instanceof FormData).toBe(true);
+    expect(body.get("key")).toBe("value");
     expect(fetchCalls.length).toEqual(1);
   });
 
   it(".response() returns the processed response+body", async () => {
     mockFetchOnce("hello");
-    const res = await fch("/").response();
+    const res = await (fch("/") as any).response();
     expect(res.body).toBe("hello");
     expect(res.status).toBe(200);
     expect(fetchCalls.length).toEqual(1);
@@ -540,14 +549,14 @@ describe("output methods", () => {
 
   it(".raw() returns the raw response+body", async () => {
     mockFetchOnce("hello");
-    const res = await fch("/").raw();
+    const res = await (fch("/") as any).raw();
     expect(res.body instanceof ReadableStream).toBe(true);
     expect(fetchCalls.length).toEqual(1);
   });
 
   it(".clone() returns the raw response+body", async () => {
     mockFetchOnce("hello");
-    const res = await fch("/").clone();
+    const res = await (fch("/") as any).clone();
     expect(res.body instanceof ReadableStream).toBe(true);
     expect(fetchCalls.length).toEqual(1);
   });
@@ -614,7 +623,7 @@ describe("query parameters", () => {
 
   it("ignores undefined", async () => {
     mockFetchOnce("hello");
-    const body = await fch("/?ghi=jkl", { query: { abc: undefined } });
+    const body = await fch("/?ghi=jkl", { query: { abc: undefined as any } });
 
     expect(body).toEqual("hello");
     expect(fetchCalls.length).toEqual(1);

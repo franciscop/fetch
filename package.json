@@ -9,10 +9,13 @@
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
   "scripts": {
-    "build": "esbuild src/index.js --bundle --minify --sourcemap --outfile=index.min.js --format=esm",
+    "build": "npm run build:bundle && npm run build:types",
+    "build:bundle": "esbuild src/index.ts --bundle --minify --sourcemap --outfile=index.min.js --format=esm",
+    "build:types": "tsc --emitDeclarationOnly --outDir .",
+    "typecheck": "tsc --noEmit",
     "size": "echo $(gzip -c index.min.js | wc -c) bytes",
     "start": "bun test --watch",
-    "test": "bun test"
+    "test": "npm run typecheck && bun test"
   },
   "keywords": [
     "fetch",
@@ -34,6 +37,8 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.11",
+    "@types/node": "^25.5.0",
     "check-dts": "^0.9.0",
     "dotenv": "^16.3.1",
     "esbuild": "^0.19.2",

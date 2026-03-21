@@ -1,37 +1,39 @@
-import { describe, it, expect, beforeEach, beforeAll, spyOn } from "bun:test";
+import { beforeAll, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import kv from "polystore";
 
 import fch from "./index.js";
 
 // Mock fetch globally
-let fetchMock;
-let fetchCalls = [];
+let fetchMock: any;
+let fetchCalls: any[] = [];
 
-function mockFetchOnce(response, init) {
+function mockFetchOnce(response: any, init?: ResponseInit): any {
   if (init && typeof response === "string") {
     response = new Response(response, init);
   }
 
-  const responses = [response];
+  const responses: any[] = [response];
   let callCount = 0;
   fetchCalls = [];
-  fetchMock = spyOn(global, "fetch").mockImplementation(async (...args) => {
-    fetchCalls.push(args);
-    const resp = responses[callCount] || responses[responses.length - 1];
-    callCount++;
-    if (typeof resp === "function") {
-      const result = await resp(...args);
-      if (typeof result === "string") return new Response(result);
-      return result;
-    }
-    if (typeof resp === "string") {
-      return new Response(resp);
-    }
-    return resp;
-  });
+  fetchMock = (spyOn(global, "fetch") as any).mockImplementation(
+    async (...args: any[]) => {
+      fetchCalls.push(args);
+      const resp = responses[callCount] || responses[responses.length - 1];
+      callCount++;
+      if (typeof resp === "function") {
+        const result = await resp(...args);
+        if (typeof result === "string") return new Response(result);
+        return result;
+      }
+      if (typeof resp === "string") {
+        return new Response(resp);
+      }
+      return resp;
+    },
+  );
 
   return {
-    once(nextResponse, nextInit) {
+    once(nextResponse: any, nextInit?: ResponseInit) {
       if (nextInit && typeof nextResponse === "string") {
         responses.push(new Response(nextResponse, nextInit));
       } else {
@@ -42,10 +44,11 @@ function mockFetchOnce(response, init) {
   };
 }
 
-const delay = (num) => new Promise((done) => setTimeout(done, num));
+const delay = (num: number): Promise<void> =>
+  new Promise((done) => setTimeout(done, num));
 
 describe("polystore cache client", () => {
-  let api;
+  let api: any;
   beforeAll(() => {
     const cache = kv(new Map());
     api = fch.create({ cache });
