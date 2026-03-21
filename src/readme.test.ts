@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Readable } from "node:stream";
+import kv from "polystore";
 import fch from "./index";
 import {
   delay,
@@ -11,9 +12,97 @@ import {
 } from "./test-utils";
 
 /**
- * Tests for the "How to" examples from the README
+ * Tests for the README examples
  * These ensure all documentation examples actually work
  */
+
+describe("README: Main examples", () => {
+  beforeEach(() => {
+    resetFetch();
+  });
+
+  afterEach(() => {
+    resetFetch();
+  });
+
+  it("plain usage example works", async () => {
+    mockFetchOnce(JSON.stringify({ name: "Mewtwo", id: 150 }), jsonHeaders);
+
+    const mew = await fch("https://pokeapi.co/pokemon/150");
+    expect(mew.name).toBe("Mewtwo");
+    expect(fetchCalls[0][0]).toBe("https://pokeapi.co/pokemon/150");
+  });
+
+  it("API abstraction example works", async () => {
+    const api = fch.create({ baseUrl: "https://pokeapi.co/" });
+
+    mockFetchOnce(JSON.stringify({ name: "Mewtwo", id: 150 }), jsonHeaders);
+    const mew = await api.get("/pokemon/150");
+    expect(mew.name).toBe("Mewtwo");
+    expect(fetchCalls[0][0]).toBe("https://pokeapi.co/pokemon/150");
+
+    // Reset for second call
+    fetchCalls.length = 0;
+
+    mockFetchOnce(JSON.stringify({ type: "psychic" }), jsonHeaders);
+    await api.patch("/pokemon/150", { type: "psychic" });
+    expect(fetchCalls[0][0]).toBe("https://pokeapi.co/pokemon/150");
+    expect(fetchCalls[0][1]?.method).toBe("patch");
+  });
+
+  it("create instance with options example works", async () => {
+    const api = fch.create({
+      baseUrl: "https://api.example.com",
+      headers: { "X-Custom": "header" },
+    });
+
+    mockFetchOnce("ok", textHeaders);
+    await api.get("/test");
+
+    expect(fetchCalls[0][0]).toBe("https://api.example.com/test");
+    expect(fetchCalls[0][1]?.headers?.["x-custom"]).toBe("header");
+  });
+});
+
+describe("README: Cache examples", () => {
+  beforeEach(() => {
+    resetFetch();
+  });
+
+  afterEach(() => {
+    resetFetch();
+  });
+
+  it("simple cache string example works", async () => {
+    const cache = kv(new Map()).expires("1h");
+    const api = fch.create({
+      baseUrl: "https://api.myweb.com/",
+      cache,
+    });
+
+    mockFetchOnce("data1", textHeaders);
+    const res1 = await api.get("/somedata");
+    expect(res1).toBe("data1");
+
+    // Second call should be cached
+    const res2 = await api.get("/somedata");
+    expect(res2).toBe("data1");
+    expect(fetchCalls.length).toBe(1); // Only one actual fetch
+  });
+
+  it("per-request cache override example works", async () => {
+    const cache = kv(new Map()).expires("1h");
+    const shortCache = kv(new Map()).expires("20s");
+    const api = fch.create({
+      baseUrl: "https://api.myweb.com/",
+      cache,
+    });
+
+    mockFetchOnce("data", textHeaders);
+    await api.get("/somedata", { cache: shortCache });
+    expect(fetchCalls.length).toBe(1);
+  });
+});
 
 describe("How to: Stop errors from throwing", () => {
   beforeEach(() => {
