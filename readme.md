@@ -17,7 +17,7 @@ await api.patch("/pokemon/150", { type: "psychic" });
 - Create instances with shared options across requests.
 - Configurable **cache** that works in-memory, with redis, or others.
 - Automatically encode and decode JSON bodies.
-- Await/Async Promises; `>= 400 and <= 100` will throw an error.
+- Await/Async Promises; non-OK responses (status < 200 or >= 300) will throw an error.
 - Credentials: "include" by default
 - Interceptors: `before` the request, `after` the response and catch with `error`.
 - Designed for both Node.js and the browser through its extensible cache system.
@@ -156,9 +156,9 @@ It can be either absolute or relative, in which case it'll use the local one in 
 
 ```js
 import api from "fch";
-api.baseUrl = "https//api.filemon.io/";
+api.baseUrl = "https://api.filemon.io/";
 api.get("/hello");
-// Called https//api.filemon.io/hello
+// Called https://api.filemon.io/hello
 ```
 
 > Note: with Node.js you need to either set an absolute baseUrl or make the URL absolute
@@ -170,10 +170,10 @@ api.get("/hello");
 The `body` can be a string, a plain object|array, a FormData instance, a ReadableStream, a SubmitEvent or a HTMLFormElement. If it's a plain array or object, it'll be stringified and the header `application/json` will be added:
 
 ```js
-import api from "api";
+import fch from "fch";
 
 // Sending plain text
-await api.post("/houses", "plain text");
+await fch.post("/houses", "plain text");
 
 // Will JSON.stringify it internally and add the JSON headers
 await api.post("/houses", { id: 1, name: "Cute Cottage" });
@@ -182,12 +182,12 @@ await api.post("/houses", { id: 1, name: "Cute Cottage" });
 form.onsubmit = (e) => api.post("/houses", new FormData(e.target));
 
 // We have some helpers so you can just pass the Event or <form> itself!
-form.onsubmit = (e) => api.post("/houses", e); // does not work with jquery BTW
+form.onsubmit = (e) => api.post("/houses", e);
 form.onsubmit = (e) => api.post("/houses", e.target);
 form.onsubmit = (e) => api.post("/houses", new FormData(e.target));
 ```
 
-The methods `GET`, `HEAD` and `DELETE` do not accept a body and it'll be ignored if you try to force it into the options.
+The methods `GET` and `HEAD` do not accept a body. For `DELETE`, while not common, you can pass a body via the options parameter if needed: `fch.delete('/resource', { body: {...} })`.
 
 ### Query
 
@@ -295,7 +295,7 @@ There are few options that can be specified:
 - `output: "response"`: return the full response with the properties `body`, `headers`, `status`. The body will be parsed as JSON or plain TEXT depending on the headers. If you want the raw `response`, use `raw` or `clone` instead (see below in "raw" or "clone").
 - `output: "stream"`: return a [web ReadableStream](https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream) of the body as the result of the promise.
 - `output: "arrayBuffer"`\*: returns an arrayBuffer of the response body.
-- `output: "blob"`\*: returns an arrayBuffer of the response body.
+- `output: "blob"`\*: returns a Blob of the response body.
 - `output: "clone"`\*: returns the raw Response, with the raw body. See also `raw` below.
 - `output: "formData"`\* (might be unavailable): returns an instance of FormData with all the parsed data.
 - `output: "json"`\*: attempts to parse the response as JSON.
@@ -328,25 +328,27 @@ stream.pipeTo(...);
 
 > We use **[polystore](https://polystore.dev/)** for Cache management.
 
-The cache (disabled by default) is a great method to reduce the number of API requests we make. We use [polystore](https://polystore.dev/) for cache storage, which provides a unified interface for multiple storage backends.
+The cache (disabled by default) is a great method to reduce the number of API requests we make. Provide a [polystore](https://polystore.dev/) Store instance directly to `fch.create()` (or per request) and fch will cache GET responses using whatever persistence that store offers. Set `cache` to `null` on a call to skip caching entirely. Legacy cache helpers such as `shouldCache`, `generateKey`, or expiry options have been removed; fch now relies purely on the semantics of the Polystore Store you pass in.
 
-> Note: cache should only be used through `fch.create({ cache: ... })`, not through the global instance.
 
-To activate the cache, create a polystore instance with your desired expiration:
+
+While a GET request is in flight, fch keeps an internal map of ongoing requests so additional calls reuse the same promise instead of triggering duplicate fetches. As soon as the request resolves, the result is written to your store (if available) and the entry is removed from the in-flight map.
+
+To activate the cache, create a polystore store and pass it to fch:
 
 ```js
 import kv from "polystore";
 
-// This API has 1h cache by default (uses in-memory Map):
-const cache = kv(new Map()).expires("1h");
+// This API reuses responses using an in-memory Map:
+const cache = kv(new Map());
 const api = fch.create({
   cache,
-  baseUrl: 'https://api.myweb.com/'
+  baseUrl: "https://api.myweb.com/",
 });
 
-// This specific call will be cached for 20s
-const shortCache = kv(new Map()).expires("20s");
-api.get('/somedata', { cache: shortCache });
+// Provide a different store per request if needed
+const shortCache = kv(new Map());
+api.get("/somedata", { cache: shortCache });
 ```
 
 For more control, you can use **polystore** to create a custom cache store with different backends (in-memory, Redis, localStorage, etc.):
@@ -355,12 +357,12 @@ For more control, you can use **polystore** to create a custom cache store with 
 import fch from "fch";
 import kv from "polystore";
 
-// In-memory cache with 1 hour expiration
-const cache = kv(new Map()).expires("1h");
+// In-memory cache backed by a Map
+const cache = kv(new Map());
 
 const api = fch.create({
-  baseUrl: 'https://api.myweb.com/',
-  cache: cache
+  baseUrl: "https://api.myweb.com/",
+  cache,
 });
 ```
 
@@ -371,12 +373,12 @@ import fch from "fch";
 import kv from "polystore";
 import { createClient } from "redis";
 
-// Redis cache with 1 hour expiration
+// Redis-backed cache store
 const redis = await createClient().connect();
-const cache = kv(redis).expires("1h");
+const cache = kv(redis);
 
 const api = fch.create({
-  cache: cache
+  cache,
 });
 ```
 
@@ -385,7 +387,7 @@ That's the basic usage, but "invalidating cache" is not one of the complex topic
 ```js
 import kv from "polystore";
 
-const cache = kv(new Map()).expires("1h");
+const cache = kv(new Map());
 const api = fch.create({ cache });
 
 // Remove them all
@@ -400,71 +402,13 @@ import kv from "polystore";
 import { createClient } from "redis";
 
 const redis = await createClient().connect();
-const cache = kv(redis).expires("1h");
+const cache = kv(redis);
 
 const api = fch.create({ cache });
 
 // Later on, you can access the underlying Redis client
 await redis.flushDB();
 ```
-
-For advanced cache configuration, you can pass an object with additional options like `shouldCache` and `createKey`:
-
-```js
-import kv from "polystore";
-
-const cache = kv(new Map()).expires("1h");
-
-const api = fch.create({
-  cache: {
-    store: cache,
-    // Default shouldCache; Note the lowercase
-    shouldCache: (request) => request.method === "get",
-
-    // Default createKey;
-    createKey: (request) => request.method + ":" + request.url,
-  },
-});
-```
-
-For example, if you want to differentiate the auth requests from the non-auth requests, you can do it so:
-
-```js
-import kv from "polystore";
-
-const cache = kv(new Map()).expires("1h");
-
-const api = fch.create({
-  cache: {
-    store: cache,
-    // Create a key unique for each user
-    createKey: (req) => user.id + ":" + req.method + ":" + req.url,
-  }
-});
-
-const onLogin = (user) => {
-  // Remove the old requests since we were not auth'ed yet
-  cache.clear();
-};
-```
-
-Or maybe you just want to NOT cache any of the requests that have an `Authorization` header, you can do so:
-
-```js
-import kv from "polystore";
-
-const cache = kv(new Map()).expires("1week");
-
-const api = fch.create({
-  cache: {
-    store: cache,
-    // Note the lowercase in both! we normalize them to be lowercase
-    shouldCache: (req) => req.method === "get" && !req.headers.authorization,
-  },
-});
-```
-
-It is this flexible since you can use fch both in the front-end and back-end, so usually in each of them you might want to follow a slightly different strategy.
 
 #### Creating a custom store
 
@@ -587,8 +531,9 @@ import fch from "fch";
 // All the requests will add the Authorization header when the token is
 // in localStorage
 fch.before = (req) => {
-  if (localStorage.get("token")) {
-    req.headers.Authorization = "bearer " + localStorage.get("token");
+  const token = localStorage.getItem("token");
+  if (token) {
+    req.headers.Authorization = "bearer " + token;
   }
   return req;
 };
@@ -702,7 +647,7 @@ axios.interceptors.request.use(fn);
 fch.before = fn;
 ```
 
-API size is also strikingly different, with **7.8kb** for Axios and **1.1kb** for fch.
+API size is also strikingly different, with **7.8kb** for Axios and **2.1kb** for fch (gzipped).
 
 As disadvantages, I can think of two major ones for `fch`:
 

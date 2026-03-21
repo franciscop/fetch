@@ -5,12 +5,6 @@ type Store = {
     has?: (key: string) => Promise<boolean>;
     clear?: () => Promise<any>;
 };
-type Cache = Store | {
-    expire?: number | string;
-    store?: Store;
-    shouldCache?: (request: any) => boolean;
-    createKey?: (request: any) => string;
-};
 type Headers = {
     [name: string]: string;
 };
@@ -28,7 +22,7 @@ type Options = {
     headers?: Headers;
     baseUrl?: string;
     baseURL?: string;
-    cache?: Cache;
+    cache?: Store;
     output?: string;
     credentials?: string;
     before?: (req: any) => any;
@@ -63,7 +57,7 @@ interface FchInstance {
     headers: Headers;
     baseUrl: string | null;
     baseURL: string | null;
-    cache: any;
+    cache: Store | null;
     output: string;
     credentials: string;
     before?: (req: any) => any;

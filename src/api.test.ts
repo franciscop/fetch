@@ -12,7 +12,7 @@ import {
 describe("HTTP method shortcuts", () => {
   beforeEach(() => {
     resetFetch();
-    fch.cache.shouldCache = () => false;
+    fch.cache = null;
     fch.baseUrl = null;
     fch.baseURL = null;
   });

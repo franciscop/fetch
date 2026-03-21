@@ -9,15 +9,6 @@ type Store = {
   clear?: () => Promise<any>;
 };
 
-type Cache =
-  | Store
-  | {
-      expire?: number | string;
-      store?: Store;
-      shouldCache?: (request: any) => boolean;
-      createKey?: (request: any) => string;
-    };
-
 type Headers = { [name: string]: string };
 type Query = { [name: string]: string };
 type Methods =
@@ -49,7 +40,7 @@ type Options = {
   headers?: Headers;
   baseUrl?: string;
   baseURL?: string;
-  cache?: Cache;
+  cache?: Store;
   output?: string;
   credentials?: string;
   before?: (req: any) => any;
@@ -85,7 +76,7 @@ interface FchInstance {
   headers: Headers;
   baseUrl: string | null;
   baseURL: string | null;
-  cache: any;
+  cache: Store | null;
   output: string;
   credentials: string;
   before?: (req: any) => any;
@@ -239,31 +230,6 @@ const createFetch = (
     .catch(error);
 };
 
-const defaultShouldCache = (request: any): boolean => request.method === "get";
-const defaultCreateKey = (request: any): string =>
-  request.method + ":" + request.url;
-
-interface CacheConfig {
-  store: Store | Promise<Store> | null;
-  shouldCache: (request: any) => boolean;
-  createKey: (request: any) => string;
-  clear: () => Promise<void>;
-}
-
-const createCache = (store?: Store | Promise<Store> | null): CacheConfig => {
-  const cache: CacheConfig = {
-    store: store ?? null,
-    shouldCache: defaultShouldCache,
-    createKey: defaultCreateKey,
-    clear: () =>
-      Promise.resolve(cache.store).then((store) =>
-        store?.clear ? store.clear() : Promise.resolve(),
-      ),
-  };
-
-  return cache;
-};
-
 function create(defaults: Options = {}): FchInstance {
   const ongoing: Record<string, Promise<any>> = {};
   const ref: { res?: Response } = {};
@@ -291,12 +257,10 @@ function create(defaults: Options = {}): FchInstance {
         after,
         error,
 
-        cache: _lostCache,
+        cache,
 
         ...request
       } = { ...fch, ...options } as any; // Local option OR global value (including defaults)
-
-      const cache = { ...fch.cache };
 
       // Absolute URL if possible; Default method; merge the default headers
       request.url = createUrl(
@@ -304,19 +268,15 @@ function create(defaults: Options = {}): FchInstance {
         { ...fch.query, ...options.query },
         request.baseUrl ?? request.baseURL,
       );
-      request.method = request.method.toLowerCase() || "GET";
+      request.method = (request.method || "get").toLowerCase();
       request.headers = createHeaders({ ...fch.headers, ...options.headers });
 
       // Has the event or form, transform it to a FormData
       if (
-        typeof SubmitEvent !== "undefined" &&
-        request.body instanceof SubmitEvent
-      ) {
-        request.body = new FormData((request.body as any).target);
-      }
-      if (
-        typeof HTMLFormElement !== "undefined" &&
-        request.body instanceof HTMLFormElement
+        (typeof SubmitEvent !== "undefined" &&
+          request.body instanceof SubmitEvent) ||
+        (typeof HTMLFormElement !== "undefined" &&
+          request.body instanceof HTMLFormElement)
       ) {
         request.body = new FormData(request.body);
       }
@@ -331,38 +291,34 @@ function create(defaults: Options = {}): FchInstance {
       // Hijack the requeset and modify it
       request = before ? before(request) : request;
 
-      if (cache.shouldCache(request) && cache.store) {
-        const key = cache.createKey(request);
-
-        // Already cached, return the previous request
-        if (await cache.store.has!(key)) {
-          return cache.store.get(key);
-        }
-
-        // Ongoing, return the instance
-        if (ongoing[key]) return ongoing[key];
-
-        let res;
-        try {
-          // Otherwise generate a request, save it, and return it
-          ongoing[key] = createFetch(request, {
-            ref,
-            cache,
-            output,
-            error,
-            after,
-          } as any);
-          res = await ongoing[key];
-        } finally {
-          delete ongoing[key];
-        }
-        // Note: failing the request will throw and thus never cache
-        await cache.store.set(key, res);
-        return res;
+      // PUT, POST, etc should never dedupe and just return the plain request
+      if (!cache || request.method !== "get") {
+        return createFetch(request, { ref, output, error, after });
       }
 
-      // PUT, POST, etc should never dedupe and just return the plain request
-      return createFetch(request, { ref, output, error, after } as any);
+      const key = request.method + ":" + request.url;
+
+      const value = await cache.get(key);
+      if (value) return value;
+
+      if (ongoing[key]) return ongoing[key];
+
+      let res;
+      try {
+        // Otherwise generate a request, save it, and return it
+        ongoing[key] = createFetch(request, {
+          ref,
+          output,
+          error,
+          after,
+        });
+        res = await ongoing[key];
+      } finally {
+        delete ongoing[key];
+      }
+      // Note: failing the request will throw and thus never cache
+      await cache.set(key, res);
+      return res;
     },
     extraMethods,
   ) as FchInstance;
@@ -376,7 +332,7 @@ function create(defaults: Options = {}): FchInstance {
   fch.baseURL = defaults.baseUrl ?? defaults.baseURL ?? null;
 
   // Handle cache - user passes a polystore instance directly
-  fch.cache = createCache(defaults.cache as any);
+  fch.cache = (defaults.cache ?? null) as any;
 
   // Default options
   fch.output = defaults.output ?? "body";
