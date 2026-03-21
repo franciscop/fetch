@@ -460,8 +460,6 @@ You can also add the interceptors `before`, `after` and `error`:
 - `after`: Called just after the response is created and if there was no error, but before parsing anything else.
 - `error`: When the response is not okay, if possible it'll include the `response` object.
 
-> Note: interceptors are never deduped/cached and always execute once per call, even if the main async fetch() has been deduped.
-
 ```js
 // Perform an action or request transformation before the request is sent
 fch.before = async req => {
