@@ -328,42 +328,22 @@ stream.pipeTo(...);
 
 > We use **[polystore](https://polystore.dev/)** for Cache management.
 
-The cache (disabled by default) is a great method to reduce the number of API requests we make. Provide a [polystore](https://polystore.dev/) Store instance directly to `fch.create()` (or per request) and fch will cache GET responses using whatever persistence that store offers. Set `cache` to `null` on a call to skip caching entirely. Legacy cache helpers such as `shouldCache`, `generateKey`, or expiry options have been removed; fch now relies purely on the semantics of the Polystore Store you pass in.
+The cache (disabled by default) is a great method to reduce the number of API requests we make. Provide a [polystore](https://polystore.dev/) Store instance directly to `fch.create()` and fch will cache GET responses using whatever persistence that store offers. Set `cache` to `null` on a call to skip caching entirely.
 
+While a GET request is in flight, fch keeps an internal map of ongoing requests to deduplicate parallel calls. As soon as the request resolves, the result is written to your store (if available) and the entry is removed from the in-flight map.
 
-
-While a GET request is in flight, fch keeps an internal map of ongoing requests so additional calls reuse the same promise instead of triggering duplicate fetches. As soon as the request resolves, the result is written to your store (if available) and the entry is removed from the in-flight map.
-
-To activate the cache, create a polystore store and pass it to fch:
+To activate the cache, create a **polystore** store and pass it to fch:
 
 ```js
 import kv from "polystore";
 
 // This API reuses responses using an in-memory Map:
-const cache = kv(new Map());
-const api = fch.create({
-  cache,
-  baseUrl: "https://api.myweb.com/",
-});
+const cache = kv(new Map(), { expires: '1h' });
+const api = fch.create({ baseUrl: "...", cache });
 
-// Provide a different store per request if needed
-const shortCache = kv(new Map());
+// Call `.expires()` to return an instance with a different cache time
+const shortCache = cache.expires('10min');
 api.get("/somedata", { cache: shortCache });
-```
-
-For more control, you can use **polystore** to create a custom cache store with different backends (in-memory, Redis, localStorage, etc.):
-
-```js
-import fch from "fch";
-import kv from "polystore";
-
-// In-memory cache backed by a Map
-const cache = kv(new Map());
-
-const api = fch.create({
-  baseUrl: "https://api.myweb.com/",
-  cache,
-});
 ```
 
 Polystore supports multiple backends. For example, with Redis:
@@ -374,15 +354,12 @@ import kv from "polystore";
 import { createClient } from "redis";
 
 // Redis-backed cache store
-const redis = await createClient().connect();
-const cache = kv(redis);
+const cache = kv(createClient().connect());
 
-const api = fch.create({
-  cache,
-});
+const api = fch.create({ cache });
 ```
 
-That's the basic usage, but "invalidating cache" is not one of the complex topics in CS for no reason. Let's dig deeper. To clear the cache, you can call `cache.clear()` at any time:
+That's the basic usage, but "invalidating cache" is not one of the complex topics in CS for no reason. To clear the cache, call `cache.clear()` at any time:
 
 ```js
 import kv from "polystore";
@@ -412,7 +389,7 @@ await redis.flushDB();
 
 #### Creating a custom store
 
-You can create a custom store that works with fch by implementing the polystore-compatible interface. See the [polystore documentation](https://polystore.dev/) for details on creating custom stores and adapters.
+You can create a custom store that works with fch by implementing the polystore-compatible interface. See the [polystore documentation](https://polystore.dev/documentation#custom-store) for details on creating custom stores and adapters.
 
 ### Interceptors
 
