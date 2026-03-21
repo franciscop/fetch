@@ -46,7 +46,7 @@ api.del(url, { headers, ...options });
 | [`query`](#query)         | `{}`               | Add query parameters to the URL          |
 | [`headers`](#headers)     | `{}`               | Shared headers across all requests       |
 | [`output`](#output)       | `"body"`           | The return value of the API call         |
-| [`cache`](#cache)         | `{ expire: 0 }`    | How long to reuse the response body      |
+| [`cache`](#cache)         | `false`            | How long to reuse the response body      |
 | [`before`](#interceptors) | `req => req`       | Process the request before sending it    |
 | [`after`](#interceptors)  | `res => res`       | Process the response before returning it |
 | [`error`](#interceptors)  | `err => throw err` | Process errors before returning them     |
@@ -92,7 +92,7 @@ api.headers = {}; // Merged with the headers on a per-request basis
 
 // Control simple variables
 api.output = "body"; // Return the parsed body; use 'response' or 'stream' otherwise
-api.cache = { expires: 0 }; // Avoid sending GET requests that were already sent recently
+api.cache = false; // Avoid sending GET requests that were already sent recently
 
 // Interceptors
 api.before = (req) => req;
@@ -326,19 +326,14 @@ stream.pipeTo(...);
 
 ### Cache
 
-The cache (disabled by default) is a great method to reduce the number of API requests we make. While it's possible to modify the global fch to add a cache, we recommend to always use it per-instance or per-request. Options:
-
-- `expire`: the amount of time the cached data will be valid for, it can be a number (seconds) or a string such as `1hour`, `1week`, etc. (based on [parse-duration](https://github.com/jkroso/parse-duration))
-- `store`: the store where the cached data will be stored.
-- `shouldCache`: a function that returns a boolean to determine whether the current data should go through the cache process.
-- `createKey`: a function that takes the request and generates a unique key for that request, which will be the same for the next time that same request is made. Defaults to method+url.
+The cache (disabled by default) is a great method to reduce the number of API requests we make. We use [polystore](https://polystore.dev/) for cache storage, which provides a unified interface for multiple storage backends.
 
 > Note: cache should only be used through `fch.create({ cache: ... })`, not through the global instance.
 
-To activate the cache, we just need to set a time as such:
+To activate the cache, you can pass a time string or number (seconds), and an in-memory store will be created automatically:
 
 ```js
-// This API has 1h by default:
+// This API has 1h cache by default (uses in-memory Map):
 const api = fch.create({
   baseUrl: 'https://api.myweb.com/',
   cache: '1h'
@@ -348,56 +343,75 @@ const api = fch.create({
 api.get('/somedata', { cache: '20s' });
 ```
 
-Your cache will have a `store`; by default we create an in-memory store, but you can also use `redis` and it's fully compatible. Note now `cache` is now an object:
+For more control, you can use **polystore** to create a custom cache store with different backends (in-memory, Redis, localStorage, etc.):
 
 ```js
 import fch from "fch";
-import { createClient } from "redis";
+import kv from "polystore";
 
-// You can either pass the store instance, or a promise that will
-// return the instance. In this case we are doing the latter
-const store = createClient().connect();
+// In-memory cache with 1 hour expiration
+const cache = kv(new Map()).expires("1h");
 
 const api = fch.create({
-  cache: {
-    store: store,
-    expire: "1h",
-  },
+  baseUrl: 'https://api.myweb.com/',
+  cache: cache
+});
+```
+
+Polystore supports multiple backends. For example, with Redis:
+
+```js
+import fch from "fch";
+import kv from "polystore";
+import { createClient } from "redis";
+
+// Redis cache with 1 hour expiration
+const redis = await createClient().connect();
+const cache = kv(redis).expires("1h");
+
+const api = fch.create({
+  cache: cache
 });
 ```
 
 That's the basic usage, but "invalidating cache" is not one of the complex topics in CS for no reason. Let's dig deeper. To clear the cache, you can call `cache.clear()` at any time:
 
 ```js
-const api = fch.create({ cache: "1h" });
+import kv from "polystore";
+
+const cache = kv(new Map()).expires("1h");
+const api = fch.create({ cache });
 
 // Remove them all
-await api.cache.clear();
+await cache.clear();
 ```
 
-You can always access the store of the instance through `api.cache.store`, so we can do low-level operations on the store as such if needed:
+You can also access the underlying store directly through the polystore instance to perform low-level operations:
 
 ```js
 import fch from "fch";
+import kv from "polystore";
 import { createClient } from "redis";
 
-// Initialize it straight away
-const api = fch.create({
-  cache: {
-    store: createClient().connect(),
-    expire: "1h",
-  },
-});
+const redis = await createClient().connect();
+const cache = kv(redis).expires("1h");
 
-// Later on, maybe in a different place
-await api.cache.store.flushDB();
+const api = fch.create({ cache });
+
+// Later on, you can access the underlying Redis client
+await redis.flushDB();
 ```
 
-Finally, the other two bits that are relevant for cache are `shouldCache` and `createKey`. For the most basic examples the default probably works, but you might want more advanced configuration:
+For advanced cache configuration, you can pass an object with additional options like `shouldCache` and `createKey`:
 
 ```js
+import kv from "polystore";
+
+const cache = kv(new Map()).expires("1h");
+
 const api = fch.create({
   cache: {
+    store: cache,
     // Default shouldCache; Note the lowercase
     shouldCache: (request) => request.method === "get",
 
@@ -410,26 +424,34 @@ const api = fch.create({
 For example, if you want to differentiate the auth requests from the non-auth requests, you can do it so:
 
 ```js
-import api from "./api";
+import kv from "polystore";
+
+const cache = kv(new Map()).expires("1h");
+
+const api = fch.create({
+  cache: {
+    store: cache,
+    // Create a key unique for each user
+    createKey: (req) => user.id + ":" + req.method + ":" + req.url,
+  }
+});
 
 const onLogin = (user) => {
-  // ... Do some other stuff
-
   // Remove the old requests since we were not auth'ed yet
-  api.cache.clear();
-
-  // Create a key unique for this user
-  api.cache.createKey = (req) => user.id + ":" + req.method + ":" + req.url;
+  cache.clear();
 };
 ```
 
 Or maybe you just want to NOT cache any of the requests that have an `Authorization` header, you can do so:
 
 ```js
+import kv from "polystore";
+
+const cache = kv(new Map()).expires("1week");
+
 const api = fch.create({
   cache: {
-    expire: "1week",
-
+    store: cache,
     // Note the lowercase in both! we normalize them to be lowercase
     shouldCache: (req) => req.method === "get" && !req.headers.authorization,
   },
@@ -438,19 +460,9 @@ const api = fch.create({
 
 It is this flexible since you can use fch both in the front-end and back-end, so usually in each of them you might want to follow a slightly different strategy.
 
-#### Creating a store.
+#### Creating a custom store
 
-You might want to create a custom store. Please have a look at `src/store.js`, but basically you need an object that implements these methods:
-
-```js
-type Store = {
-  get: (key: string) => Promise<any>,
-  set: (key: string, value: any, options?: { EX: number }) => Promise<null>,
-  del: (key: string) => Promise<null>,
-  exists: (key: string) => Promise<boolean>,
-  flushAll: () => Promise<any>,
-};
-```
+You can create a custom store that works with fch by implementing the polystore-compatible interface. See the [polystore documentation](https://polystore.dev/) for details on creating custom stores and adapters.
 
 ### Interceptors
 
