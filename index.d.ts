@@ -15,6 +15,9 @@ type Methods = "get" | "head" | "post" | "patch" | "put" | "delete" | "GET" | "H
 type Body = string | any[] | {
     [key: string]: any;
 } | FormData | HTMLFormElement | SubmitEvent | ReadableStream;
+type FchError = Error & {
+    response?: Response;
+};
 type Options = {
     url?: string;
     method?: Methods;
@@ -27,7 +30,7 @@ type Options = {
     credentials?: string;
     before?: (req: any) => any;
     after?: (res: any) => any;
-    error?: (error: Error) => any;
+    error?: (error: FchError) => any;
     signal?: AbortSignal;
     [key: string]: any;
 };
@@ -62,7 +65,7 @@ interface FchInstance {
     credentials: string;
     before?: (req: any) => any;
     after?: (res: any) => any;
-    error?: (error: Error) => any;
+    error?: (error: FchError) => any;
 }
 declare function create(defaults?: Options): FchInstance;
 export { create };

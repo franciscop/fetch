@@ -33,6 +33,8 @@ type Body =
   | SubmitEvent
   | ReadableStream;
 
+type FchError = Error & { response?: Response };
+
 type Options = {
   url?: string;
   method?: Methods;
@@ -45,7 +47,7 @@ type Options = {
   credentials?: string;
   before?: (req: any) => any;
   after?: (res: any) => any;
-  error?: (error: Error) => any;
+  error?: (error: FchError) => any;
   signal?: AbortSignal;
   [key: string]: any;
 };
@@ -81,7 +83,7 @@ interface FchInstance {
   credentials: string;
   before?: (req: any) => any;
   after?: (res: any) => any;
-  error?: (error: Error) => any;
+  error?: (error: FchError) => any;
 }
 
 // Check if the body is an object/array, and if so return true so that it can be
@@ -288,7 +290,9 @@ function create(defaults: Options = {}): FchInstance {
       if (hasObjectBody(request.body)) {
         request.body = JSON.stringify(noUndefined(request.body));
         // Note: already defaults to utf-8
-        request.headers["content-type"] = "application/json";
+        if (!request.headers["content-type"]) {
+          request.headers["content-type"] = "application/json";
+        }
       }
 
       // Hijack the requeset and modify it

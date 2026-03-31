@@ -189,6 +189,21 @@ describe("fetch()", () => {
     });
   });
 
+  it("will not overwrite content-type when passing an object body with a custom content-type", async () => {
+    mockFetchOnce(JSON.stringify({ secret: "12345" }), jsonHeaders);
+    await fch("/", {
+      method: "POST",
+      body: { a: "b" },
+      headers: { "Content-Type": "application/vnd.api+json" },
+    });
+
+    const [, opts] = fetchCalls[0];
+    expect(opts).toMatchObject({
+      body: JSON.stringify({ a: "b" }),
+      headers: { "content-type": "application/vnd.api+json" },
+    });
+  });
+
   it("can run in parallel", async () => {
     mockFetchOnce("a").once("b");
     const res = await Promise.all([fch("/a"), fch("/b")]);
