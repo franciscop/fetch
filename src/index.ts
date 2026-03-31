@@ -51,25 +51,25 @@ type Options = {
 };
 
 interface FchInstance {
-  (url?: string, options?: Options): Promise<any>;
+  <T = any>(url?: string, options?: Options): Promise<T>;
   create: (options?: Options) => FchInstance;
-  get: (url: string, options?: Options) => Promise<any>;
-  head: (url: string, options?: Options) => Promise<any>;
-  post: (url: string, body?: Body, options?: Options) => Promise<any>;
-  patch: (url: string, body?: Body, options?: Options) => Promise<any>;
-  put: (url: string, body?: Body, options?: Options) => Promise<any>;
-  delete: (url: string, options?: Options) => Promise<any>;
-  del: (url: string, options?: Options) => Promise<any>;
+  get: <T = any>(url: string, options?: Options) => Promise<T>;
+  head: <T = any>(url: string, options?: Options) => Promise<T>;
+  post: <T = any>(url: string, body?: Body, options?: Options) => Promise<T>;
+  patch: <T = any>(url: string, body?: Body, options?: Options) => Promise<T>;
+  put: <T = any>(url: string, body?: Body, options?: Options) => Promise<T>;
+  delete: <T = any>(url: string, options?: Options) => Promise<T>;
+  del: <T = any>(url: string, options?: Options) => Promise<T>;
   text: () => Promise<string>;
-  json: () => Promise<any>;
+  json: <T = any>() => Promise<T>;
   blob: () => Promise<Blob>;
   stream: () => ReadableStream | null;
   arrayBuffer: () => Promise<ArrayBuffer>;
   formData: () => Promise<FormData>;
-  body: () => Promise<any>;
+  body: <T = any>() => Promise<T>;
   clone: () => Response;
   raw: () => Response;
-  response: () => Promise<any>;
+  response: <T = any>() => Promise<T>;
   url: string;
   method: Methods;
   query: Query;
@@ -127,7 +127,10 @@ const createUrl = (url: string, query: Query, base: string | null): string => {
   }
 
   if (!base) return path!;
-  const fullUrl = new URL(path!.replace(/^\//, ""), base);
+  const fullUrl = new URL(
+    path!.replace(/^\//, ""),
+    base.replace(/\/$/, "") + "/",
+  );
   return fullUrl.href;
 };
 

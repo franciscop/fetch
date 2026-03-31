@@ -5,13 +5,13 @@ A tiny library to make API calls easier. Similar to Axios, but tiny size and sim
 ```js
 // Plain usage
 import fch from "fch";
-const mew = await fch("https://pokeapi.co/pokemon/150");
+const mew = await fch("https://pokeapi.co/pokemon/151");
 console.log(mew);
 
 // As an API abstraction
 const api = fch.create({ baseUrl: "https://pokeapi.co/" });
-const mew = await api.get("/pokemon/150");
-await api.patch("/pokemon/150", { type: "psychic" });
+const mew = await api.get("/pokemon/151");
+await api.patch("/pokemon/151", { type: "psychic" });
 ```
 
 - Create instances with shared options across requests.
@@ -594,7 +594,7 @@ import api from "fch";
 
 api.baseUrl = "https://pokeapi.co/";
 
-const mew = await api.get("/pokemon/150");
+const mew = await api.get("/pokemon/151");
 console.log(mew);
 ```
 

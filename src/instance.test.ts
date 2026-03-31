@@ -356,6 +356,17 @@ describe("fch.create()", () => {
     expect(fetchCalls[0][0]).toEqual("https://example.com/api/v1/users");
   });
 
+  it("creates instance with baseUrl containing path without trailing slash", async () => {
+    mockFetchOnce("api response");
+
+    const api = fch.create({ baseUrl: "https://example.com/api/v1" });
+
+    const result = await api.get("/users");
+
+    expect(result).toEqual("api response");
+    expect(fetchCalls[0][0]).toEqual("https://example.com/api/v1/users");
+  });
+
   it("creates multiple independent instances", async () => {
     mockFetchOnce("github").once("gitlab");
 
