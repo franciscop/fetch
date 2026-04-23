@@ -22,7 +22,7 @@ await api.patch<Partial<Pokemon>>("/pokemon/151", { type: "psychic" });
 - Interceptors: `before` the request, `after` the response and catch with `error`.
 - Designed for both Node.js and the browser through its extensible cache system.
 - No dependencies; include it with a simple `<script>` on the browser.
-- Full Types definitions so you get nice autocomplete
+- Full Types definitions so you get nice autocomplete.
 
 ```js
 import fch from "fch";
