@@ -35,6 +35,23 @@ type Body =
 
 type FchError = Error & { response?: Response };
 
+type FchRequest = {
+  url: string;
+  method: string;
+  headers: Headers;
+  body?: string | FormData | ReadableStream | null;
+  credentials?: RequestCredentials;
+  signal?: AbortSignal;
+  [key: string]: any;
+};
+
+type FchResponse = {
+  status: number;
+  statusText: string;
+  headers: Headers;
+  body: any;
+};
+
 type Options = {
   url?: string;
   method?: Methods;
@@ -44,9 +61,9 @@ type Options = {
   baseURL?: string;
   cache?: Store;
   output?: string;
-  credentials?: string;
-  before?: (req: any) => any;
-  after?: (res: any) => any;
+  credentials?: RequestCredentials;
+  before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
+  after?: (res: FchResponse) => FchResponse | Promise<FchResponse>;
   error?: (error: FchError) => any;
   signal?: AbortSignal;
   [key: string]: any;
@@ -80,9 +97,9 @@ interface FchInstance {
   baseURL: string | null;
   cache: Store | null;
   output: string;
-  credentials: string;
-  before?: (req: any) => any;
-  after?: (res: any) => any;
+  credentials: RequestCredentials;
+  before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
+  after?: (res: FchResponse) => FchResponse | Promise<FchResponse>;
   error?: (error: FchError) => any;
 }
 
@@ -156,16 +173,9 @@ const getBody = async (res: Response): Promise<any> => {
   return isJson ? JSON.parse(text) : text;
 };
 
-interface ParsedResponse {
-  status: number;
-  statusText: string;
-  headers: Headers;
-  body: any;
-}
-
-const parseResponse = async (res: Response): Promise<ParsedResponse> => {
+const parseResponse = async (res: Response): Promise<FchResponse> => {
   // Need to manually create it to set some things like the proper response
-  const response: ParsedResponse = {
+  const response: FchResponse = {
     status: res.status,
     statusText: res.statusText,
     headers: {},
@@ -188,7 +198,7 @@ const parseResponse = async (res: Response): Promise<ParsedResponse> => {
 };
 
 const createFetch = (
-  request: any,
+  request: FchRequest,
   {
     ref,
     after,
@@ -196,8 +206,8 @@ const createFetch = (
     output,
   }: {
     ref: { res?: Response };
-    after: (res: any) => any;
-    error: (error: Error) => any;
+    after: (res: FchResponse) => FchResponse | Promise<FchResponse>;
+    error: (error: FchError) => any;
     output: string;
   },
 ): Promise<any> => {
@@ -220,7 +230,7 @@ const createFetch = (
       }
 
       // Hijack the response and modify it, earlier than the manual body changes
-      const response = after(await parseResponse(res));
+      const response = await after(await parseResponse(res));
 
       if (output === "body") {
         return response.body;
@@ -295,8 +305,8 @@ function create(defaults: Options = {}): FchInstance {
         }
       }
 
-      // Hijack the requeset and modify it
-      request = before ? before(request) : request;
+      // Hijack the request and modify it
+      request = before ? await before(request as FchRequest) : request;
 
       // PUT, POST, etc should never dedupe and just return the plain request
       if (!cache || request.method !== "get") {

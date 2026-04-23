@@ -5,13 +5,13 @@ A tiny library to make API calls easier. Similar to Axios, but tiny size and sim
 ```js
 // Plain usage
 import fch from "fch";
-const mew = await fch("https://pokeapi.co/pokemon/151");
+const mew = await fch<Pokemon>("https://pokeapi.co/pokemon/151");
 console.log(mew);
 
 // As an API abstraction
 const api = fch.create({ baseUrl: "https://pokeapi.co/" });
-const mew = await api.get("/pokemon/151");
-await api.patch("/pokemon/151", { type: "psychic" });
+const mew = await api.get<Pokemon>("/pokemon/151");
+await api.patch<Partial<Pokemon>>("/pokemon/151", { type: "psychic" });
 ```
 
 - Create instances with shared options across requests.
@@ -29,12 +29,12 @@ import fch from "fch";
 
 const api = fch.create({ baseUrl, headers, ...options });
 
-api.get(url, { headers, ...options });
-api.head(url, { headers, ...options });
-api.post(url, body, { headers, ...options });
-api.patch(url, body, { headers, ...options });
-api.put(url, body, { headers, ...options });
-api.del(url, { headers, ...options });
+api.get<T>(url, { headers, ...options });
+api.head<T>(url, { headers, ...options });
+api.post<T>(url, body, { headers, ...options });
+api.patch<T>(url, body, { headers, ...options });
+api.put<T>(url, body, { headers, ...options });
+api.del<T>(url, { headers, ...options });
 ```
 
 | Options                   | Default            | Description                              |
@@ -47,8 +47,8 @@ api.del(url, { headers, ...options });
 | [`headers`](#headers)     | `{}`               | Shared headers across all requests       |
 | [`output`](#output)       | `"body"`           | The return value of the API call         |
 | [`cache`](#cache)         | `false`            | How long to reuse the response body      |
-| [`before`](#interceptors) | `req => req`       | Process the request before sending it    |
-| [`after`](#interceptors)  | `res => res`       | Process the response before returning it |
+| [`before`](#interceptors) | `req => req`       | `(req: FchRequest) => FchRequest` — transform the request before sending |
+| [`after`](#interceptors)  | `res => res`       | `(res: FchResponse) => FchResponse` — transform the response before returning |
 | [`error`](#interceptors)  | `err => throw err` | Process errors before returning them     |
 
 ## Getting Started
@@ -409,25 +409,43 @@ You can also add the interceptors `before`, `after` and `error`:
 - `after`: Called just after the response is created and if there was no error, but before parsing anything else.
 - `error`: When the response is not okay, if possible it'll include the `response` object.
 
+The interceptors are typed as follows:
+
+```ts
+type FchRequest = {
+  url: string;
+  method: string;
+  headers: { [name: string]: string };
+  body?: string | FormData | ReadableStream | null;
+  credentials?: string;
+  signal?: AbortSignal;
+  [key: string]: any;
+};
+
+type FchResponse = {
+  status: number;
+  statusText: string;
+  headers: { [name: string]: string };
+  body: any;
+};
+```
+
 ```js
 // Perform an action or request transformation before the request is sent
-fch.before = async req => {
-  // Normalized request ready to be sent
-  ...
+fch.before = async (req: FchRequest): Promise<FchRequest> => {
+  req.headers['Authorization'] = 'Bearer ' + getToken();
   return req;
 };
 
 // Perform an action or data transformation after the request is finished
-fch.after = async res => {
-  // Full response as just after the request is made
-  ...
+fch.after = async (res: FchResponse): Promise<FchResponse> => {
+  res.body = transform(res.body);
   return res;
 };
 
 // Perform an action or data transformation when an error is thrown
 fch.error = async err => {
   // Need to re-throw if we want to throw on error
-  ...
   throw err;
 
   // OR, resolve it as if it didn't fail
@@ -439,19 +457,6 @@ fch.error = async err => {
 ```
 
 ## How to
-
-### Stop errors from throwing
-
-While you can handle this on a per-request basis, if you want to overwrite the global behavior you can write a interceptor:
-
-```js
-import fch from "fch";
-fch.output = "response";
-fch.error = (error) => error.response;
-
-const res = await fch("/notfound");
-expect(res.status).toBe(404);
-```
 
 ### Return the full response
 
@@ -472,9 +477,7 @@ import fch from "fch";
 
 // Valid values are 'body' (default) or 'response'
 const res = await fch("/hello", { output: "response" });
-
-// Does not affect others
-const body = await fch("/hello");
+const res = await fch("/hello").response();
 ```
 
 It does perform some basic parsing of the `body`, if you don't want any of that you can retrieve the very raw response:
@@ -485,6 +488,18 @@ import fch from "fch";
 // Valid values are 'body' (default) or 'response'
 const res = await fch("/hello", { output: "raw" });
 console.log(res.body); // ReadableStream
+```
+
+### Stop errors from throwing
+
+To overwrite the global behavior you can write a interceptor:
+
+```js
+import fch from "fch";
+fch.error = (error) => error.response;
+
+const res = await fch("/notfound").response();
+expect(res.status).toBe(404);
 ```
 
 ### Set a base URL
