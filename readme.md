@@ -141,6 +141,16 @@ const { id } = await api.post("/cats", { name: "snowbll" });
 await api.patch(`/cats/${id}`, { name: "snowball" });
 ```
 
+All methods accept a generic type parameter for the response body:
+
+```ts
+type Cat = { id: number; name: string };
+
+const cats = await api.get<Cat[]>("/cats");
+const cat = await api.post<Cat>("/cats", { name: "snowball" });
+await api.patch<Cat>(`/cats/${cat.id}`, { name: "snowball" });
+```
+
 ### Url
 
 Specify where to send the request to. It must be the first argument in all methods and the base call:

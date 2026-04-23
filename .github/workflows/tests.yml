@@ -10,18 +10,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
-
       - name: Install dependencies
         run: bun install
-
       - name: Build it
         run: bun run build
-        env:
-          CI: true
-
       - name: Testing
         run: bun test
         env:

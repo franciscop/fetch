@@ -3,9 +3,8 @@
   "version": "6.0.4",
   "description": "Fetch interface with better promises, deduplication, defaults, etc.",
   "homepage": "https://github.com/franciscop/fetch",
-  "repository": "https://github.com/franciscop/fetch.git",
-  "bugs": "https://github.com/franciscop/fetch/issues",
   "funding": "https://www.paypal.me/franciscopresencia/19",
+  "repository": "github:franciscop/fetch",
   "author": "Francisco Presencia <public@francisco.io> (https://francisco.io/)",
   "license": "MIT",
   "scripts": {
