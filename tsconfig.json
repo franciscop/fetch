@@ -23,6 +23,7 @@
     "forceConsistentCasingInFileNames": true,
 
     // Emit Configuration
+    "noEmit": true,
     "declaration": true,
     "declarationMap": false,
     "sourceMap": true,
