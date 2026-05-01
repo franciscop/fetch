@@ -11,10 +11,10 @@
     "build": "npm run build:bundle && npm run build:types",
     "build:bundle": "bun build src/index.ts --outfile=index.min.js --minify --format=esm",
     "build:types": "tsc --emitDeclarationOnly --outDir .",
-    "typecheck": "tsc --noEmit src/**/*.ts",
+    "lint": "tsc",
     "size": "echo $(gzip -c index.min.js | wc -c) bytes",
     "start": "bun test --watch",
-    "test": "npm run typecheck && bun test"
+    "test": "bun test"
   },
   "keywords": [
     "fetch",

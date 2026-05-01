@@ -16,7 +16,9 @@ jobs:
         run: bun install
       - name: Build it
         run: bun run build
-      - name: Testing
-        run: bun test
+      - name: Run the linter
+        run: npm run lint
+      - name: Run the tests
+        run: npm test
         env:
           CI: true
