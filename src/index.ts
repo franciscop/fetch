@@ -2,11 +2,11 @@ import swear from "swear";
 
 // Type definitions
 type Store = {
-  get: (key: string) => Promise<any>;
-  set: (key: string, value: any, options?: any) => Promise<any>;
-  del: (key: string) => Promise<any>;
+  get: (key: string) => Promise<unknown>;
+  set: (key: string, value: unknown, options?: unknown) => Promise<unknown>;
+  del: (key: string) => Promise<unknown>;
   has?: (key: string) => Promise<boolean>;
-  clear?: () => Promise<any>;
+  clear?: () => Promise<unknown>;
 };
 
 type Headers = { [name: string]: string };
@@ -26,8 +26,8 @@ type Methods =
   | "DELETE";
 type Body =
   | string
-  | any[]
-  | { [key: string]: any }
+  | unknown[]
+  | { [key: string]: unknown }
   | FormData
   | HTMLFormElement
   | SubmitEvent
@@ -35,38 +35,33 @@ type Body =
 
 type FchError = Error & { response?: Response };
 
-type FchRequest = {
+type FchRequest = Omit<RequestInit, "body" | "headers" | "method"> & {
   url: string;
   method: string;
   headers: Headers;
   body?: string | FormData | ReadableStream | null;
-  credentials?: RequestCredentials;
-  signal?: AbortSignal;
-  [key: string]: any;
 };
 
 type FchResponse = {
   status: number;
   statusText: string;
   headers: Headers;
-  body: any;
+  body: unknown;
 };
 
-type Options = {
+type Options = Omit<RequestInit, "body" | "cache" | "headers" | "method"> & {
   url?: string;
   method?: Methods;
   query?: Query;
   headers?: Headers;
   baseUrl?: string;
   baseURL?: string;
+  body?: Body;
   cache?: Store;
   output?: string;
-  credentials?: RequestCredentials;
   before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
   after?: (res: FchResponse) => FchResponse | Promise<FchResponse>;
   error?: (error: FchError) => any;
-  signal?: AbortSignal;
-  [key: string]: any;
 };
 
 interface FchInstance {
@@ -95,7 +90,7 @@ interface FchInstance {
   headers: Headers;
   baseUrl: string | null;
   baseURL: string | null;
-  cache: Store | null;
+  cache?: Store;
   output: string;
   credentials: RequestCredentials;
   before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
@@ -105,14 +100,15 @@ interface FchInstance {
 
 // Check if the body is an object/array, and if so return true so that it can be
 // properly JSON.stringify() + adding the proper ContentType
-const hasObjectBody = (body: any): boolean => {
+const hasObjectBody = (body: Body | null | undefined): boolean => {
   if (!body) return false;
   if (body instanceof FormData) return false;
-  if (typeof (body.pipe || body.pipeTo) === "function") return false;
+  if (typeof (body as Record<string, unknown>)["pipe"] === "function") return false;
+  if (body instanceof ReadableStream) return false;
   return typeof body === "object" || Array.isArray(body);
 };
 
-const noUndefined = <T extends Record<string, any>>(obj: T): Partial<T> => {
+const noUndefined = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
   if (typeof obj !== "object") return obj;
   for (const key in obj) {
     if (obj[key] === undefined) delete obj[key];
@@ -137,8 +133,8 @@ const createUrl = (url: string, query: Query, base: string | null): string => {
   // Merge global params with passed params with url params
   const entries = new URLSearchParams(
     Object.fromEntries([
-      ...new URLSearchParams(noUndefined(query) as any),
-      ...new URLSearchParams(noUndefined(urlQuery as any) as any),
+      ...new URLSearchParams(noUndefined(query) as Record<string, string>),
+      ...new URLSearchParams(urlQuery),
     ]),
   ).toString();
   if (entries) {
@@ -165,7 +161,7 @@ const createHeaders = (raw: Headers): Headers => {
   return headers;
 };
 
-const getBody = async (res: Response): Promise<any> => {
+const getBody = async (res: Response): Promise<unknown> => {
   // Automatically parse the response
   const type = res.headers.get("content-type");
   const isJson = type && type.includes("application/json");
@@ -210,7 +206,7 @@ const createFetch = (
     error: (error: FchError) => any;
     output: string;
   },
-): Promise<any> => {
+): Promise<unknown> => {
   return fetch(request.url, request)
     .then(async (res) => {
       ref.res = res;
@@ -223,10 +219,10 @@ const createFetch = (
       // Raw methods requested
       if (
         res.ok &&
-        (res as any)[output] &&
-        typeof (res as any)[output] === "function"
+        (res as unknown as Record<string, unknown>)[output] &&
+        typeof (res as unknown as Record<string, unknown>)[output] === "function"
       ) {
-        return (res as any)[output]();
+        return (res as unknown as Record<string, () => unknown>)[output]!();
       }
 
       // Hijack the response and modify it, earlier than the manual body changes
@@ -246,7 +242,7 @@ const createFetch = (
 };
 
 function create(defaults: Options = {}): FchInstance {
-  const ongoing: Record<string, Promise<any>> = {};
+  const ongoing: Record<string, Promise<unknown>> = {};
   const ref: { res?: Response } = {};
   const extraMethods = {
     text: () => ref.res!.clone().text(),
@@ -261,8 +257,8 @@ function create(defaults: Options = {}): FchInstance {
     response: () => parseResponse(ref.res!.clone()),
   };
 
-  const fch = swear(
-    async (url: string = "/", options: Options = {}): Promise<any> => {
+  const fch = swear<FchInstance>(
+    async (url: string = "/", options: Options = {}): Promise<unknown> => {
       // Exctract the options
       let {
         output,
@@ -349,7 +345,7 @@ function create(defaults: Options = {}): FchInstance {
   fch.baseURL = defaults.baseUrl ?? defaults.baseURL ?? null;
 
   // Handle cache - user passes a polystore instance directly
-  fch.cache = (defaults.cache ?? null) as any;
+  fch.cache = defaults.cache;
 
   // Default options
   fch.output = defaults.output ?? "body";

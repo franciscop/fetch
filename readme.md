@@ -34,7 +34,7 @@ api.head<T>(url, { headers, ...options });
 api.post<T>(url, body, { headers, ...options });
 api.patch<T>(url, body, { headers, ...options });
 api.put<T>(url, body, { headers, ...options });
-api.del<T>(url, { headers, ...options });
+api.delete<T>(url, { headers, ...options });
 ```
 
 | Options                   | Default            | Description                              |
@@ -46,7 +46,7 @@ api.del<T>(url, { headers, ...options });
 | [`query`](#query)         | `{}`               | Add query parameters to the URL          |
 | [`headers`](#headers)     | `{}`               | Shared headers across all requests       |
 | [`output`](#output)       | `"body"`           | The return value of the API call         |
-| [`cache`](#cache)         | `false`            | How long to reuse the response body      |
+| [`cache`](#cache)         | `undefined`        | How long to reuse the response body      |
 | [`before`](#interceptors) | `req => req`       | `(req: FchRequest) => FchRequest` — transform the request before sending |
 | [`after`](#interceptors)  | `res => res`       | `(res: FchResponse) => FchResponse` — transform the response before returning |
 | [`error`](#interceptors)  | `err => throw err` | Process errors before returning them     |
@@ -92,7 +92,7 @@ api.headers = {}; // Merged with the headers on a per-request basis
 
 // Control simple variables
 api.output = "body"; // Return the parsed body; use 'response' or 'stream' otherwise
-api.cache = false; // Avoid sending GET requests that were already sent recently
+api.cache = undefined; // Avoid sending GET requests that were already sent recently
 
 // Interceptors
 api.before = (req) => req;
@@ -417,16 +417,15 @@ type FchRequest = {
   method: string;
   headers: { [name: string]: string };
   body?: string | FormData | ReadableStream | null;
-  credentials?: string;
+  credentials?: RequestCredentials;
   signal?: AbortSignal;
-  [key: string]: any;
 };
 
 type FchResponse = {
   status: number;
   statusText: string;
   headers: { [name: string]: string };
-  body: any;
+  body: unknown;
 };
 ```
 
