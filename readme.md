@@ -2,7 +2,7 @@
 
 A tiny library to make API calls easier. Similar to Axios, but tiny size and simpler API:
 
-```js
+```ts
 // Plain usage
 import fch from "fch";
 const mew = await fch<Pokemon>("https://pokeapi.co/pokemon/151");
@@ -46,7 +46,7 @@ api.delete<T>(url, { headers, ...options });
 | [`query`](#query)         | `{}`               | Add query parameters to the URL          |
 | [`headers`](#headers)     | `{}`               | Shared headers across all requests       |
 | [`output`](#output)       | `"body"`           | The return value of the API call         |
-| [`cache`](#cache)         | `undefined`        | How long to reuse the response body      |
+| [`cache`](#cache)         | `undefined`        | A polystore Store for caching GET responses |
 | [`before`](#interceptors) | `req => req`       | `(req: FchRequest) => FchRequest` — transform the request before sending |
 | [`after`](#interceptors)  | `res => res`       | `(res: FchResponse) => FchResponse` — transform the response before returning |
 | [`error`](#interceptors)  | `err => throw err` | Process errors before returning them     |
@@ -162,7 +162,7 @@ await api("/hello", { method: "post", body: "...", headers: {} });
 await api.post("/hello", body, { headers: {} });
 ```
 
-It can be either absolute or relative, in which case it'll use the local one in the page. It's recommending to set `baseUrl`:
+It can be either absolute or relative, in which case it'll use the local one in the page. It's recommended to set `baseUrl`:
 
 ```js
 import api from "fch";
@@ -208,7 +208,7 @@ api.get("/cats", { query: { limit: 3 } });
 // /cats?limit=3
 ```
 
-While rare, some times you might want to persist a query parameter across requests and always include it; in that case, you can define it globally and it'll be added to every request, or on an instance:
+While rare, sometimes you might want to persist a query parameter across requests and always include it; in that case, you can define it globally and it'll be added to every request, or on an instance:
 
 ```js
 import fch from "fch";
@@ -340,7 +340,7 @@ stream.pipeTo(...);
 
 The cache (disabled by default) is a great method to reduce the number of API requests we make. Provide a [polystore](https://polystore.dev/) Store instance directly to `fch.create()` and fch will cache GET responses using whatever persistence that store offers. Set `cache` to `null` on a call to skip caching entirely.
 
-While a GET request is in flight, fch keeps an internal map of ongoing requests to deduplicate parallel calls. As soon as the request resolves, the result is written to your store (if available) and the entry is removed from the in-flight map.
+While a GET request is in flight, fch keeps an internal map of ongoing requests to deduplicate parallel calls to the same URL within the same instance. As soon as the request resolves, the result is written to your store and the entry is removed from the in-flight map.
 
 To activate the cache, create a **polystore** store and pass it to fch:
 
