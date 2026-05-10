@@ -62,6 +62,37 @@ describe("fetch()", () => {
     expect(fetchCalls[0][1].headers).toEqual({});
   });
 
+  it("supports all methods", async () => {
+    mockFetchOnce("get")
+      .once("head")
+      .once("post")
+      .once("put")
+      .once("patch")
+      .once("delete");
+
+    const get: string = await fch.get("/users");
+    const head: string = await fch.head("/users");
+    const post: string = await fch.post("/users", { name: "John" });
+    const put: string = await fch.put("/users/1", { name: "Jane" });
+    const patch: string = await fch.patch("/users/1", { name: "Jack" });
+    const del: string = await fch.delete("/users/1");
+
+    expect(get).toEqual("get");
+    expect(head).toEqual("head");
+    expect(post).toEqual("post");
+    expect(put).toEqual("put");
+    expect(patch).toEqual("patch");
+    expect(del).toEqual("delete");
+
+    expect(fetchCalls.length).toEqual(6);
+    expect(fetchCalls[0][1].method).toEqual("get");
+    expect(fetchCalls[1][1].method).toEqual("head");
+    expect(fetchCalls[2][1].method).toEqual("post");
+    expect(fetchCalls[3][1].method).toEqual("put");
+    expect(fetchCalls[4][1].method).toEqual("patch");
+    expect(fetchCalls[5][1].method).toEqual("delete");
+  });
+
   describe("streaming", () => {
     it("can create a streaming request", async () => {
       mockFetchOnce("hello");
@@ -166,7 +197,7 @@ describe("fetch()", () => {
 
     expect(res).toEqual({ secret: "12345" });
     expect(fetchCalls.length).toEqual(1);
-    const [url, opts] = fetchCalls[0];
+    const [_url, opts] = fetchCalls[0];
     expect(opts).toMatchObject({ body: expect.any(FormData) });
   });
 
@@ -210,6 +241,39 @@ describe("fetch()", () => {
 
     expect(res).toEqual(["a", "b"]);
     expect(fetchCalls.length).toEqual(2);
+  });
+
+  it("reuses the same fetch when the same result is awaited twice", async () => {
+    mockFetchOnce("hello");
+    const req = fch.get("/");
+    const [a, b] = await Promise.all([req, req]);
+
+    expect(a).toBe("hello");
+    expect(b).toBe("hello");
+    expect(fetchCalls.length).toBe(1);
+  });
+
+  it("shares the underlying fetch between await and an output method", async () => {
+    mockFetchOnce("hello");
+    const req = fch.get("/");
+    await req;
+    await req.text();
+
+    expect(fetchCalls.length).toBe(1);
+  });
+
+  it("sends credentials: include by default", async () => {
+    mockFetchOnce("ok");
+    await fch("/");
+
+    expect(fetchCalls[0][1].credentials).toBe("include");
+  });
+
+  it("error handler can resolve with a fallback value", async () => {
+    mockFetchOnce("not found", { status: 404 } as any);
+    const result = await fch("/", { error: () => "fallback" });
+
+    expect(result).toBe("fallback");
   });
 
   it("can set `accepts` insensitively", async () => {

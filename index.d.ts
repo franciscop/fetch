@@ -2,7 +2,7 @@
 
 export type Store = {
 	get: (key: string) => Promise<unknown>;
-	set: (key: string, value: unknown, options?: unknown) => Promise<unknown>;
+	set: (key: string, value: any, options?: any) => Promise<unknown>;
 	del: (key: string) => Promise<unknown>;
 	has?: (key: string) => Promise<boolean>;
 	clear?: () => Promise<unknown>;
@@ -32,6 +32,21 @@ export type FchResponse = {
 	headers: Headers$1;
 	body: unknown;
 };
+export type FchResult<T = unknown> = {
+	then<R1 = T, R2 = never>(onfulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null, onrejected?: ((reason: any) => R2 | PromiseLike<R2>) | null): Promise<R1 | R2>;
+	catch<R = never>(onrejected?: ((reason: any) => R | PromiseLike<R>) | null): Promise<T | R>;
+	finally(onfinally?: (() => void) | null): Promise<T>;
+	text(): Promise<string>;
+	json<R = unknown>(): Promise<R>;
+	blob(): Promise<Blob>;
+	arrayBuffer(): Promise<ArrayBuffer>;
+	formData(): Promise<FormData>;
+	body<R = unknown>(): Promise<R>;
+	stream(): Promise<ReadableStream | null>;
+	raw(): Promise<Response>;
+	clone(): Promise<Response>;
+	response(): Promise<FchResponse>;
+};
 export type Options = Omit<RequestInit, "body" | "cache" | "headers" | "method"> & {
 	url?: string;
 	method?: Methods;
@@ -40,39 +55,29 @@ export type Options = Omit<RequestInit, "body" | "cache" | "headers" | "method">
 	baseUrl?: string;
 	baseURL?: string;
 	body?: Body$1;
-	cache?: Store;
+	cache?: Store | null;
 	output?: string;
 	before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
 	after?: (res: FchResponse) => FchResponse | Promise<FchResponse>;
 	error?: (error: FchError) => any;
 };
 export interface FchInstance {
-	<T = any>(url?: string, options?: Options): Promise<T>;
+	<T = any>(url?: string, options?: Options): FchResult<T>;
 	create: (options?: Options) => FchInstance;
-	get: <T = any>(url: string, options?: Options) => Promise<T>;
-	head: <T = any>(url: string, options?: Options) => Promise<T>;
-	post: <T = any>(url: string, body?: Body$1, options?: Options) => Promise<T>;
-	patch: <T = any>(url: string, body?: Body$1, options?: Options) => Promise<T>;
-	put: <T = any>(url: string, body?: Body$1, options?: Options) => Promise<T>;
-	delete: <T = any>(url: string, options?: Options) => Promise<T>;
-	del: <T = any>(url: string, options?: Options) => Promise<T>;
-	text: () => Promise<string>;
-	json: <T = any>() => Promise<T>;
-	blob: () => Promise<Blob>;
-	stream: () => ReadableStream | null;
-	arrayBuffer: () => Promise<ArrayBuffer>;
-	formData: () => Promise<FormData>;
-	body: <T = any>() => Promise<T>;
-	clone: () => Response;
-	raw: () => Response;
-	response: <T = any>() => Promise<T>;
+	get: <T = any>(url: string, options?: Options) => FchResult<T>;
+	head: <T = any>(url: string, options?: Options) => FchResult<T>;
+	post: <T = any>(url: string, body?: Body$1, options?: Options) => FchResult<T>;
+	patch: <T = any>(url: string, body?: Body$1, options?: Options) => FchResult<T>;
+	put: <T = any>(url: string, body?: Body$1, options?: Options) => FchResult<T>;
+	delete: <T = any>(url: string, options?: Options) => FchResult<T>;
+	del: <T = any>(url: string, options?: Options) => FchResult<T>;
 	url: string;
 	method: Methods;
 	query: Query;
 	headers: Headers$1;
 	baseUrl: string | null;
 	baseURL: string | null;
-	cache?: Store;
+	cache?: Store | null;
 	output: string;
 	credentials: RequestCredentials;
 	before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;

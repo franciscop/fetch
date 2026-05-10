@@ -40,7 +40,7 @@ describe("HTTP method shortcuts", () => {
   it("can use the `fetch.patch()` shorthand", async () => {
     mockFetchOnce("my-data");
     expect(
-      await fch.patch("/", { hello: "world" }, { headers: { a: "b" } }),
+      await fch.patch<string>("/", { hello: "world" }, { headers: { a: "b" } }),
     ).toBe("my-data");
     expect(fetchCalls[0][1].method).toEqual("patch");
     expect(fetchCalls[0][1].body).toEqual(JSON.stringify({ hello: "world" }));
@@ -50,7 +50,7 @@ describe("HTTP method shortcuts", () => {
   it("can use the `fetch.put()` shorthand", async () => {
     mockFetchOnce("my-data");
     expect(
-      await fch.put("/", { hello: "world" }, { headers: { a: "b" } }),
+      await fch.put<string>("/", { hello: "world" }, { headers: { a: "b" } }),
     ).toBe("my-data");
     expect(fetchCalls[0][1].method).toEqual("put");
     expect(fetchCalls[0][1].body).toEqual(JSON.stringify({ hello: "world" }));
@@ -60,7 +60,7 @@ describe("HTTP method shortcuts", () => {
   it("can use the `fetch.post()` shorthand", async () => {
     mockFetchOnce("my-data");
     expect(
-      await fch.post("/", { hello: "world" }, { headers: { a: "b" } }),
+      await fch.post<string>("/", { hello: "world" }, { headers: { a: "b" } }),
     ).toBe("my-data");
     expect(fetchCalls[0][1].method).toEqual("post");
     expect(fetchCalls[0][1].body).toEqual(JSON.stringify({ hello: "world" }));
@@ -69,7 +69,7 @@ describe("HTTP method shortcuts", () => {
 
   it("can use the `fetch.delete()` shorthand", async () => {
     mockFetchOnce("my-data");
-    expect(await fch.delete("/")).toBe("my-data");
+    expect(await fch.delete<string>("/")).toBe("my-data");
     expect(fetchCalls[0][1].method).toEqual("delete");
   });
 
@@ -78,5 +78,11 @@ describe("HTTP method shortcuts", () => {
     await fch.delete("/resource", { body: { reason: "test" } });
     expect(fetchCalls[0][1].method).toEqual("delete");
     expect(fetchCalls[0][1].body).toEqual('{"reason":"test"}');
+  });
+
+  it("fch.del is an alias for fch.delete", async () => {
+    mockFetchOnce("deleted");
+    await fch.del("/resource");
+    expect(fetchCalls[0][1].method).toEqual("delete");
   });
 });

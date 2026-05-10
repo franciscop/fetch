@@ -329,12 +329,19 @@ describe("fch.create()", () => {
 
     const api = fch.create({ baseUrl: "https://api.example.com" });
 
-    expect(await api.get("/users")).toEqual("get");
-    expect(await api.head("/users")).toEqual("head");
-    expect(await api.post("/users", { name: "John" })).toEqual("post");
-    expect(await api.put("/users/1", { name: "Jane" })).toEqual("put");
-    expect(await api.patch("/users/1", { name: "Jack" })).toEqual("patch");
-    expect(await api.delete("/users/1")).toEqual("delete");
+    const get: string = await api.get("/users");
+    const head: string = await api.head("/users");
+    const post: string = await api.post("/users", { name: "John" });
+    const put: string = await api.put("/users/1", { name: "Jane" });
+    const patch: string = await api.patch("/users/1", { name: "Jack" });
+    const del: string = await api.delete("/users/1");
+
+    expect(get).toEqual("get");
+    expect(head).toEqual("head");
+    expect(post).toEqual("post");
+    expect(put).toEqual("put");
+    expect(patch).toEqual("patch");
+    expect(del).toEqual("delete");
 
     expect(fetchCalls.length).toEqual(6);
     expect(fetchCalls[0][1].method).toEqual("get");
@@ -473,6 +480,15 @@ describe("fch.create()", () => {
       expect(resa).toEqual("a");
       expect(resb).toEqual("b");
       expect(fetchCalls.length).toEqual(2);
+    });
+
+    it("deduplicates concurrent requests to the same URL", async () => {
+      mockFetchOnce("data");
+      const [a, b] = await Promise.all([api("/url"), api("/url")]);
+
+      expect(a).toEqual("data");
+      expect(b).toEqual("data");
+      expect(fetchCalls.length).toEqual(1);
     });
   });
 });

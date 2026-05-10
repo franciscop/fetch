@@ -1,4 +1,4 @@
-# Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![test badge](https://github.com/franciscop/fetch/workflows/tests/badge.svg "test badge")](https://github.com/franciscop/fetch/actions) [![gzip size](https://img.badgesize.io/franciscop/fetch/master/index.min.js.svg?compression=gzip)](https://bundlephobia.com/package/fch)
+# Fch [![npm install fch](https://img.shields.io/badge/npm%20install-fch-blue.svg)](https://www.npmjs.com/package/fch) [![test badge](https://github.com/franciscop/fetch/workflows/tests/badge.svg "test badge")](https://github.com/franciscop/fetch/actions) [![gzip size](https://badgen.net/bundlephobia/minzip/fch?label=gzip&color=green)](https://bundlephobia.com/package/fch) [![dependencies](https://img.shields.io/badge/dependencies-0-limegreen.svg)](https://github.com/franciscop/fetch/blob/master/package.json)
 
 A tiny library to make API calls easier. Similar to Axios, but tiny size and simpler API:
 
@@ -648,7 +648,7 @@ axios.interceptors.request.use(fn);
 fch.before = fn;
 ```
 
-API size is also strikingly different, with **7.8kb** for Axios and **2.1kb** for fch (gzipped).
+API size is also strikingly different, with **7.8kb** for Axios and **1.5kb** for fch (gzipped).
 
 As disadvantages, I can think of two major ones for `fch`:
 

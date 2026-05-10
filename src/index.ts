@@ -1,9 +1,7 @@
-import swear from "swear";
-
 // Type definitions
 type Store = {
   get: (key: string) => Promise<unknown>;
-  set: (key: string, value: unknown, options?: unknown) => Promise<unknown>;
+  set: (key: string, value: any, options?: any) => Promise<unknown>;
   del: (key: string) => Promise<unknown>;
   has?: (key: string) => Promise<boolean>;
   clear?: () => Promise<unknown>;
@@ -49,6 +47,27 @@ type FchResponse = {
   body: unknown;
 };
 
+type FchResult<T = unknown> = {
+  then<R1 = T, R2 = never>(
+    onfulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null,
+    onrejected?: ((reason: any) => R2 | PromiseLike<R2>) | null,
+  ): Promise<R1 | R2>;
+  catch<R = never>(
+    onrejected?: ((reason: any) => R | PromiseLike<R>) | null,
+  ): Promise<T | R>;
+  finally(onfinally?: (() => void) | null): Promise<T>;
+  text(): Promise<string>;
+  json<R = unknown>(): Promise<R>;
+  blob(): Promise<Blob>;
+  arrayBuffer(): Promise<ArrayBuffer>;
+  formData(): Promise<FormData>;
+  body<R = unknown>(): Promise<R>;
+  stream(): Promise<ReadableStream | null>;
+  raw(): Promise<Response>;
+  clone(): Promise<Response>;
+  response(): Promise<FchResponse>;
+};
+
 type Options = Omit<RequestInit, "body" | "cache" | "headers" | "method"> & {
   url?: string;
   method?: Methods;
@@ -57,7 +76,7 @@ type Options = Omit<RequestInit, "body" | "cache" | "headers" | "method"> & {
   baseUrl?: string;
   baseURL?: string;
   body?: Body;
-  cache?: Store;
+  cache?: Store | null;
   output?: string;
   before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
   after?: (res: FchResponse) => FchResponse | Promise<FchResponse>;
@@ -65,32 +84,22 @@ type Options = Omit<RequestInit, "body" | "cache" | "headers" | "method"> & {
 };
 
 interface FchInstance {
-  <T = any>(url?: string, options?: Options): Promise<T>;
+  <T = any>(url?: string, options?: Options): FchResult<T>;
   create: (options?: Options) => FchInstance;
-  get: <T = any>(url: string, options?: Options) => Promise<T>;
-  head: <T = any>(url: string, options?: Options) => Promise<T>;
-  post: <T = any>(url: string, body?: Body, options?: Options) => Promise<T>;
-  patch: <T = any>(url: string, body?: Body, options?: Options) => Promise<T>;
-  put: <T = any>(url: string, body?: Body, options?: Options) => Promise<T>;
-  delete: <T = any>(url: string, options?: Options) => Promise<T>;
-  del: <T = any>(url: string, options?: Options) => Promise<T>;
-  text: () => Promise<string>;
-  json: <T = any>() => Promise<T>;
-  blob: () => Promise<Blob>;
-  stream: () => ReadableStream | null;
-  arrayBuffer: () => Promise<ArrayBuffer>;
-  formData: () => Promise<FormData>;
-  body: <T = any>() => Promise<T>;
-  clone: () => Response;
-  raw: () => Response;
-  response: <T = any>() => Promise<T>;
+  get: <T = any>(url: string, options?: Options) => FchResult<T>;
+  head: <T = any>(url: string, options?: Options) => FchResult<T>;
+  post: <T = any>(url: string, body?: Body, options?: Options) => FchResult<T>;
+  patch: <T = any>(url: string, body?: Body, options?: Options) => FchResult<T>;
+  put: <T = any>(url: string, body?: Body, options?: Options) => FchResult<T>;
+  delete: <T = any>(url: string, options?: Options) => FchResult<T>;
+  del: <T = any>(url: string, options?: Options) => FchResult<T>;
   url: string;
   method: Methods;
   query: Query;
   headers: Headers;
   baseUrl: string | null;
   baseURL: string | null;
-  cache?: Store;
+  cache?: Store | null;
   output: string;
   credentials: RequestCredentials;
   before?: (req: FchRequest) => FchRequest | Promise<FchRequest>;
@@ -98,12 +107,11 @@ interface FchInstance {
   error?: (error: FchError) => any;
 }
 
-// Check if the body is an object/array, and if so return true so that it can be
-// properly JSON.stringify() + adding the proper ContentType
 const hasObjectBody = (body: Body | null | undefined): boolean => {
   if (!body) return false;
   if (body instanceof FormData) return false;
-  if (typeof (body as Record<string, unknown>)["pipe"] === "function") return false;
+  if (typeof (body as Record<string, unknown>)["pipe"] === "function")
+    return false;
   if (body instanceof ReadableStream) return false;
   return typeof body === "object" || Array.isArray(body);
 };
@@ -130,7 +138,6 @@ class ResponseError extends Error {
 const createUrl = (url: string, query: Query, base: string | null): string => {
   let [path, urlQuery = ""] = url.split("?");
 
-  // Merge global params with passed params with url params
   const entries = new URLSearchParams(
     Object.fromEntries([
       ...new URLSearchParams(noUndefined(query) as Record<string, string>),
@@ -150,19 +157,14 @@ const createUrl = (url: string, query: Query, base: string | null): string => {
 };
 
 const createHeaders = (raw: Headers): Headers => {
-  // User-set headers overwrite the base headers
   const headers: Headers = {};
-
-  // Make the headers lowercase
   for (const [key, value] of Object.entries(raw)) {
     headers[key.toLowerCase()] = value;
   }
-
   return headers;
 };
 
 const getBody = async (res: Response): Promise<unknown> => {
-  // Automatically parse the response
   const type = res.headers.get("content-type");
   const isJson = type && type.includes("application/json");
   const text = await res.clone().text();
@@ -170,7 +172,6 @@ const getBody = async (res: Response): Promise<unknown> => {
 };
 
 const parseResponse = async (res: Response): Promise<FchResponse> => {
-  // Need to manually create it to set some things like the proper response
   const response: FchResponse = {
     status: res.status,
     statusText: res.statusText,
@@ -178,12 +179,10 @@ const parseResponse = async (res: Response): Promise<FchResponse> => {
     body: undefined,
   };
 
-  // Lowercase all of the response headers and put them into a plain object
   res.headers.forEach((value, key) => {
     response.headers[key.toLowerCase()] = value;
   });
 
-  // Oops, throw it
   if (!res.ok) {
     throw new ResponseError(res);
   }
@@ -193,183 +192,169 @@ const parseResponse = async (res: Response): Promise<FchResponse> => {
   return response;
 };
 
-const createFetch = (
-  request: FchRequest,
-  {
-    ref,
-    after,
-    error,
-    output,
-  }: {
-    ref: { res?: Response };
-    after: (res: FchResponse) => FchResponse | Promise<FchResponse>;
-    error: (error: FchError) => any;
-    output: string;
-  },
-): Promise<unknown> => {
-  return fetch(request.url, request)
-    .then(async (res) => {
-      ref.res = res;
+function create(defaults: Options = {}): FchInstance {
+  const ongoing: Record<string, Promise<unknown>> = {};
 
-      // In this case, do not process anything else just return the ReadableStream
-      if (res.ok && output === "stream") {
-        return res.body;
+  const fch = function <T = any>(
+    url: string = "/",
+    options: Options = {},
+  ): FchResult<T> {
+    let {
+      output,
+      before,
+      after,
+      error,
+      cache,
+      ...request
+    } = { ...fch, ...options } as any;
+
+    request.url = createUrl(
+      url,
+      { ...fch.query, ...options.query },
+      request.baseUrl ?? request.baseURL,
+    );
+    request.method = (request.method || "get").toLowerCase();
+    request.headers = createHeaders({ ...fch.headers, ...options.headers });
+
+    if (
+      (typeof SubmitEvent !== "undefined" &&
+        request.body instanceof SubmitEvent) ||
+      (typeof HTMLFormElement !== "undefined" &&
+        request.body instanceof HTMLFormElement)
+    ) {
+      request.body = new FormData(request.body);
+    }
+
+    if (hasObjectBody(request.body)) {
+      request.body = JSON.stringify(noUndefined(request.body));
+      if (!request.headers["content-type"]) {
+        request.headers["content-type"] = "application/json";
       }
+    }
 
-      // Raw methods requested
+    // Lazy, memoized raw fetch — shared across all output methods
+    let responseProm: Promise<Response> | null = null;
+    const getResponse = (): Promise<Response> => {
+      if (!responseProm) {
+        const req: Promise<FchRequest> = before
+          ? Promise.resolve(before(request as FchRequest))
+          : Promise.resolve(request as FchRequest);
+        responseProm = req.then((r) => fetch(r.url, r));
+      }
+      return responseProm;
+    };
+
+    // Process raw response according to the output mode
+    const process = async (res: Response): Promise<T> => {
+      if (res.ok && output === "stream") return res.body as T;
+
       if (
         res.ok &&
         (res as unknown as Record<string, unknown>)[output] &&
         typeof (res as unknown as Record<string, unknown>)[output] === "function"
       ) {
-        return (res as unknown as Record<string, () => unknown>)[output]!();
+        return (res as unknown as Record<string, () => unknown>)[output]!() as T;
       }
 
-      // Hijack the response and modify it, earlier than the manual body changes
       const response = await after(await parseResponse(res));
 
-      if (output === "body") {
-        return response.body;
-      } else if (output === "response") {
-        return response;
-      } else if (output === "raw") {
-        return res.clone();
-      } else {
-        throw new Error(`Invalid option output="${output}"`);
-      }
-    })
-    .catch(error);
-};
+      if (output === "body") return response.body as T;
+      if (output === "response") return response as T;
+      if (output === "raw") return res.clone() as T;
+      throw new Error(`Invalid option output="${output}"`);
+    };
 
-function create(defaults: Options = {}): FchInstance {
-  const ongoing: Record<string, Promise<unknown>> = {};
-  const ref: { res?: Response } = {};
-  const extraMethods = {
-    text: () => ref.res!.clone().text(),
-    json: () => ref.res!.clone().json(),
-    blob: () => ref.res!.clone().blob(),
-    stream: () => ref.res!.clone().body,
-    arrayBuffer: () => ref.res!.clone().arrayBuffer(),
-    formData: () => ref.res!.clone().formData(),
-    body: () => getBody(ref.res!.clone()),
-    clone: () => ref.res!.clone(),
-    raw: () => ref.res!.clone(),
-    response: () => parseResponse(ref.res!.clone()),
-  };
+    // Memoized default promise — respects cache and in-flight deduplication
+    let defaultProm: Promise<T> | null = null;
+    const getDefault = (): Promise<T> => {
+      if (defaultProm) return defaultProm;
 
-  const fch = swear<FchInstance>(
-    async (url: string = "/", options: Options = {}): Promise<unknown> => {
-      // Exctract the options
-      let {
-        output,
-
-        // Interceptors can also be passed as parameters
-        before,
-        after,
-        error,
-
-        cache,
-
-        ...request
-      } = { ...fch, ...options } as any; // Local option OR global value (including defaults)
-
-      // Absolute URL if possible; Default method; merge the default headers
-      request.url = createUrl(
-        url,
-        { ...fch.query, ...options.query },
-        request.baseUrl ?? request.baseURL,
-      );
-      request.method = (request.method || "get").toLowerCase();
-      request.headers = createHeaders({ ...fch.headers, ...options.headers });
-
-      // Has the event or form, transform it to a FormData
-      if (
-        (typeof SubmitEvent !== "undefined" &&
-          request.body instanceof SubmitEvent) ||
-        (typeof HTMLFormElement !== "undefined" &&
-          request.body instanceof HTMLFormElement)
-      ) {
-        request.body = new FormData(request.body);
-      }
-
-      // JSON-encode plain objects
-      if (hasObjectBody(request.body)) {
-        request.body = JSON.stringify(noUndefined(request.body));
-        // Note: already defaults to utf-8
-        if (!request.headers["content-type"]) {
-          request.headers["content-type"] = "application/json";
-        }
-      }
-
-      // Hijack the request and modify it
-      request = before ? await before(request as FchRequest) : request;
-
-      // PUT, POST, etc should never dedupe and just return the plain request
       if (!cache || request.method !== "get") {
-        return createFetch(request, { ref, output, error, after });
+        defaultProm = getResponse().then(process).catch(error);
+        return defaultProm;
       }
 
-      const key = request.method + ":" + request.url;
+      const key = `${request.method}:${request.url}`;
+      defaultProm = (async (): Promise<T> => {
+        const cached = await cache.get(key);
+        if (cached) return cached as T;
 
-      const value = await cache.get(key);
-      if (value) return value;
+        if (ongoing[key]) return ongoing[key] as Promise<T>;
 
-      if (ongoing[key]) return ongoing[key];
+        try {
+          ongoing[key] = getResponse().then(process);
+          const result = await ongoing[key];
+          await cache.set(key, result);
+          return result as T;
+        } finally {
+          delete ongoing[key];
+        }
+      })().catch(error);
 
-      let res;
-      try {
-        // Otherwise generate a request, save it, and return it
-        ongoing[key] = createFetch(request, {
-          ref,
-          output,
-          error,
-          after,
-        });
-        res = await ongoing[key];
-      } finally {
-        delete ongoing[key];
-      }
-      // Note: failing the request will throw and thus never cache
-      await cache.set(key, res);
-      return res;
-    },
-    extraMethods,
-  ) as FchInstance;
+      return defaultProm;
+    };
 
-  // Default values
+    // Helper for output methods: checks ok, clones, applies error handler
+    const via = <R>(fn: (res: Response) => Promise<R>): Promise<R> =>
+      getResponse()
+        .then((res) => {
+          if (!res.ok) throw new ResponseError(res);
+          return fn(res.clone());
+        })
+        .catch(error);
+
+    return {
+      then(onfulfilled?: any, onrejected?: any) {
+        return getDefault().then(onfulfilled, onrejected);
+      },
+      catch(onrejected?: any) {
+        return getDefault().catch(onrejected);
+      },
+      finally(onfinally?: any) {
+        return getDefault().finally(onfinally);
+      },
+      text: () => via((res) => res.text()),
+      json: <R = unknown>() => via((res) => res.json()) as Promise<R>,
+      blob: () => via((res) => res.blob()),
+      arrayBuffer: () => via((res) => res.arrayBuffer()),
+      formData: () => via((res) => res.formData()),
+      body: <R = unknown>() => via((res) => getBody(res)) as Promise<R>,
+      stream: () => via(async (res) => res.body),
+      raw: () => via(async (res) => res),
+      clone: () => via(async (res) => res),
+      response: () =>
+        getResponse()
+          .then(async (res) => after(await parseResponse(res)))
+          .catch(error) as Promise<FchResponse>,
+    } as FchResult<T>;
+  } as unknown as FchInstance;
+
   fch.url = defaults.url ?? "/";
   fch.method = (defaults.method ?? "get") as Methods;
   fch.query = defaults.query ?? {};
   fch.headers = defaults.headers ?? {};
   fch.baseUrl = defaults.baseUrl ?? defaults.baseURL ?? null;
   fch.baseURL = defaults.baseUrl ?? defaults.baseURL ?? null;
-
-  // Handle cache - user passes a polystore instance directly
   fch.cache = defaults.cache;
-
-  // Default options
   fch.output = defaults.output ?? "body";
   fch.credentials = defaults.credentials ?? "include";
-
-  // Interceptors
   fch.before = defaults.before ?? ((req) => req);
   fch.after = defaults.after ?? ((res) => res);
   fch.error = defaults.error ?? ((err: Error) => Promise.reject(err));
 
-  fch.get = (url: string, opts?: Options) =>
-    fch(url, { method: "get", ...opts });
-  fch.head = (url: string, opts?: Options) =>
-    fch(url, { method: "head", ...opts });
-  fch.post = (url: string, body?: Body, opts?: Options) =>
-    fch(url, { method: "post", body, ...opts });
-  fch.patch = (url: string, body?: Body, opts?: Options) =>
-    fch(url, { method: "patch", body, ...opts });
-  fch.put = (url: string, body?: Body, opts?: Options) =>
-    fch(url, { method: "put", body, ...opts });
-  fch.delete = (url: string, opts?: Options) =>
-    fch(url, { method: "delete", ...opts });
+  fch.get = <T = any>(url: string, opts?: Options) =>
+    fch<T>(url, { method: "get", ...opts });
+  fch.head = <T = any>(url: string, opts?: Options) =>
+    fch<T>(url, { method: "head", ...opts });
+  fch.post = <T = any>(url: string, body?: Body, opts?: Options) =>
+    fch<T>(url, { method: "post", body, ...opts });
+  fch.patch = <T = any>(url: string, body?: Body, opts?: Options) =>
+    fch<T>(url, { method: "patch", body, ...opts });
+  fch.put = <T = any>(url: string, body?: Body, opts?: Options) =>
+    fch<T>(url, { method: "put", body, ...opts });
+  fch.delete = <T = any>(url: string, opts?: Options) =>
+    fch<T>(url, { method: "delete", ...opts });
   fch.del = fch.delete;
-
   fch.create = create;
 
   return fch;

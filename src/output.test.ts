@@ -43,16 +43,6 @@ async function normalizeResponse(response: any, args: any): Promise<Response> {
   return new Response(String(response));
 }
 
-function mockFetch(response: any): void {
-  fetchCalls = [];
-  fetchMock = (spyOn(global, "fetch") as any).mockImplementation(
-    async (...args: any[]) => {
-      fetchCalls.push(args);
-      return normalizeResponse(response, args);
-    },
-  );
-}
-
 function mockFetchOnce(response: any, init?: ResponseInit): any {
   // If init is provided, wrap response in Response object with init options
   if (init && typeof response === "string") {
@@ -83,24 +73,6 @@ function mockFetchOnce(response: any, init?: ResponseInit): any {
     },
   };
 }
-
-// Helper functions for streaming tests
-const stringToStream = (str: string): ReadableStream => {
-  return new Blob([str], { type: "text/plain" }).stream();
-};
-
-const streamToString = async (stream: ReadableStream): Promise<string> => {
-  let str = "";
-  for await (const chunk of stream as any) {
-    // Handle both string chunks and Uint8Array/Buffer chunks
-    if (typeof chunk === "string") {
-      str += chunk;
-    } else {
-      str += new TextDecoder().decode(chunk);
-    }
-  }
-  return str;
-};
 
 describe("output option", () => {
   beforeEach(() => {});
@@ -314,6 +286,13 @@ describe("output methods", () => {
     expect(res.body instanceof ReadableStream).toBe(true);
     expect(fetchCalls.length).toEqual(1);
   });
+
+  it("output methods trigger the error handler on non-OK responses", async () => {
+    mockFetchOnce("not found", { status: 404 } as any);
+    const err = await fch.get("/").text().catch((e: any) => e);
+    expect(err instanceof Error).toBe(true);
+    expect(err.message).toBe("Error 404");
+  });
 });
 
 describe("request body variations", () => {
@@ -329,7 +308,7 @@ describe("request body variations", () => {
   });
 
   it("will send a string as-is", async () => {
-    const res = await fch("/", { method: "POST", body: "abcdef" });
+    await fch("/", { method: "POST", body: "abcdef" });
 
     const { body, headers } = fetchCalls[0][1];
     expect(body).toBe("abcdef");
@@ -337,7 +316,7 @@ describe("request body variations", () => {
   });
 
   it("will send FormData as-is", async () => {
-    const res = await fch("/", { method: "POST", body: new FormData() });
+    await fch("/", { method: "POST", body: new FormData() });
 
     const { body, headers } = fetchCalls[0][1];
     expect(body instanceof FormData).toBe(true);
@@ -345,7 +324,7 @@ describe("request body variations", () => {
   });
 
   it("will send an object as JSON", async () => {
-    const res = await fch("/", { method: "POST", body: { a: "b" } });
+    await fch("/", { method: "POST", body: { a: "b" } });
 
     const { body, headers } = fetchCalls[0][1];
     expect(body).toBe('{"a":"b"}');
@@ -353,7 +332,7 @@ describe("request body variations", () => {
   });
 
   it("will send an array as JSON", async () => {
-    const res = await fch("/", { method: "POST", body: ["a", "b"] });
+    await fch("/", { method: "POST", body: ["a", "b"] });
 
     const { body, headers } = fetchCalls[0][1];
     expect(body).toBe('["a","b"]');

@@ -35,16 +35,6 @@ async function normalizeResponse(response: any, args: any): Promise<Response> {
 	return new Response(String(response));
 }
 
-function mockFetch(response: any): void {
-	fetchCalls = [];
-	fetchMock = (spyOn(global, "fetch") as any).mockImplementation(
-		async (...args: any[]) => {
-			fetchCalls.push(args);
-			return normalizeResponse(response, args);
-		},
-	);
-}
-
 function mockFetchOnce(response: any, init?: ResponseInit): any {
 	// If init is provided, wrap response in Response object with init options
 	if (init && typeof response === "string") {
@@ -299,5 +289,31 @@ describe("interceptors", () => {
 		expect(fetchCalls[0][0]).toEqual("/");
 		expect(fetchCalls[0][1].method).toEqual("get");
 		expect(fetchCalls[0][1].headers).toEqual({});
+	});
+
+	it("supports an async before interceptor", async () => {
+		mockFetchOnce("hello");
+		const body = await fch("/", {
+			before: async (req) => {
+				req.headers["x-async"] = "true";
+				return req;
+			},
+		});
+
+		expect(body).toEqual("hello");
+		expect(fetchCalls[0][1].headers["x-async"]).toEqual("true");
+	});
+
+	it("supports an async after interceptor", async () => {
+		mockFetchOnce("hello");
+		const res = await fch("/", {
+			output: "response",
+			after: async (res) => {
+				res.body = "async-modified";
+				return res;
+			},
+		});
+
+		expect(res.body).toEqual("async-modified");
 	});
 });
